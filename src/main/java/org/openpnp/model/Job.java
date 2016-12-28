@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.simpleframework.xml.Element;
 import org.simpleframework.xml.ElementList;
 import org.simpleframework.xml.Root;
 import org.simpleframework.xml.core.Commit;
@@ -35,6 +36,9 @@ import org.simpleframework.xml.core.Commit;
  */
 @Root(name = "openpnp-job")
 public class Job extends AbstractModelObject implements PropertyChangeListener {
+	@Element
+	private PCBPanel Panel = new PCBPanel();
+	
     @ElementList
     private ArrayList<BoardLocation> boardLocations = new ArrayList<>();
 

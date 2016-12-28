@@ -83,7 +83,7 @@ public class BoardLocationsTableModel extends AbstractTableModel {
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        return (columnIndex != 0);
+    	return (columnIndex != 0);
     }
 
     @Override

@@ -43,7 +43,16 @@ public class BoardLocation extends AbstractModelObject {
     BoardLocation() {
         setLocation(new Location(LengthUnit.Millimeters));
     }
-
+   
+    public BoardLocation(BoardLocation obj){
+    	this.location = obj.location;       // Bugbug: Make copy constructor??
+    	this.side = obj.side;               // Bugbug: Make copy constructor??
+    	this.board = obj.board;             // Bugbug: Make copy constructor??
+    	this.boardFile = obj.boardFile;
+    	this.checkFiducials = obj.checkFiducials;
+    	this.enabled = obj.enabled;
+    }
+    
     public BoardLocation(Board board) {
         this();
         setBoard(board);

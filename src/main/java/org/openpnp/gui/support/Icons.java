@@ -32,6 +32,9 @@ public class Icons {
 
     public static Icon twoPointLocate = getIcon("/icons/board-two-placement-locate.svg");
     public static Icon fiducialCheck = getIcon("/icons/board-fiducial-locate.svg");
+    
+    public static Icon autoPanelize = getIcon("/icons/panelize.svg");
+    public static Icon autoPanelizeXOut = getIcon("/icons/panelize_xout.svg");
 
     public static Icon feed = getIcon("/icons/feeder-feed.svg");
     public static Icon showPart = getIcon("/icons/feeder-show-part-outline.svg");

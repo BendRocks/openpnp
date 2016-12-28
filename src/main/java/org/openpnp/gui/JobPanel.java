@@ -22,6 +22,7 @@ package org.openpnp.gui;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FileDialog;
+import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
@@ -35,17 +36,27 @@ import java.util.prefs.Preferences;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultCellEditor;
+import javax.swing.InputMap;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.JToolBar;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EtchedBorder;
@@ -59,6 +70,14 @@ import org.openpnp.events.JobLoadedEvent;
 import org.openpnp.events.PlacementSelectedEvent;
 import org.openpnp.gui.components.AutoSelectTextTable;
 import org.openpnp.gui.importer.BoardImporter;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_2;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_3;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_2;
+//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_3;
 import org.openpnp.gui.processes.TwoPlacementBoardLocationProcess;
 import org.openpnp.gui.support.ActionGroup;
 import org.openpnp.gui.support.Helpers;
@@ -71,6 +90,7 @@ import org.openpnp.model.BoardLocation;
 import org.openpnp.model.BoardPad;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.Job;
+import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
 import org.openpnp.model.Placement;
 import org.openpnp.spi.Camera;
@@ -84,6 +104,10 @@ import org.openpnp.util.MovableUtils;
 import org.openpnp.util.UiUtils;
 
 import com.google.common.eventbus.Subscribe;
+import com.jgoodies.forms.layout.ColumnSpec;
+import com.jgoodies.forms.layout.FormLayout;
+import com.jgoodies.forms.layout.FormSpecs;
+import com.jgoodies.forms.layout.RowSpec;
 
 @SuppressWarnings("serial")
 public class JobPanel extends JPanel {
@@ -160,7 +184,7 @@ public class JobPanel extends JPanel {
         boardLocationSelectionActionGroup = new ActionGroup(removeBoardAction,
                 captureCameraBoardLocationAction, captureToolBoardLocationAction,
                 moveCameraToBoardLocationAction, moveToolToBoardLocationAction,
-                twoPointLocateBoardLocationAction, fiducialCheckAction);
+                twoPointLocateBoardLocationAction, fiducialCheckAction, panelizeAction, panelizeXOutAction);
         boardLocationSelectionActionGroup.setEnabled(false);
 
         boardLocationsTableModel = new BoardLocationsTableModel(configuration);
@@ -257,6 +281,16 @@ public class JobPanel extends JPanel {
         JButton btnFiducialCheck = new JButton(fiducialCheckAction);
         toolBarBoards.add(btnFiducialCheck);
         btnFiducialCheck.setHideActionText(true);
+        
+        toolBarBoards.addSeparator();
+        
+        JButton btnPanelize = new JButton(panelizeAction);
+        toolBarBoards.add(btnPanelize);
+        btnPanelize.setHideActionText(true);
+        
+        JButton btnPanelizeXOut = new JButton(panelizeXOutAction);
+        toolBarBoards.add(btnPanelizeXOut);
+        btnPanelizeXOut.setHideActionText(true);
 
         pnlBoards.add(new JScrollPane(boardLocationsTable));
         JPanel pnlRight = new JPanel();
@@ -1049,6 +1083,58 @@ public class JobPanel extends JPanel {
             });
         }
     };
+        
+    public final Action panelizeAction = new AbstractAction() {
+        {
+            putValue(SMALL_ICON, Icons.autoPanelize);
+            putValue(NAME, "Panelize Board");
+            putValue(SHORT_DESCRIPTION,
+                    "Autopanelize a loaded board into an array");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+        	 Dlg dlg = new Dlg(frame);
+             dlg.setVisible(true);
+        	/*
+            UiUtils.submitUiMachineTask(() -> {
+                Location location = Configuration.get().getMachine().getFiducialLocator()
+                        .locateBoard(getSelectedBoardLocation());
+                getSelectedBoardLocation().setLocation(location);
+                refreshSelectedBoardRow();
+                HeadMountable tool = MainFrame.get().getMachineControls().getSelectedTool();
+                Camera camera = tool.getHead().getDefaultCamera();
+                MainFrame.get().getCameraViews().ensureCameraVisible(camera);
+                MovableUtils.moveToLocationAtSafeZ(camera, location);
+            });*/
+        }
+    };  
+    
+    public final Action panelizeXOutAction = new AbstractAction() {
+        {
+            putValue(SMALL_ICON, Icons.autoPanelizeXOut);
+            putValue(NAME, "Xout Panelized");
+            putValue(SHORT_DESCRIPTION,
+                    "Skip certain PCBs on Panelized Boards");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+        	 Dlg dlg = new Dlg(frame);
+             dlg.setVisible(true);
+        	/*
+            UiUtils.submitUiMachineTask(() -> {
+                Location location = Configuration.get().getMachine().getFiducialLocator()
+                        .locateBoard(getSelectedBoardLocation());
+                getSelectedBoardLocation().setLocation(location);
+                refreshSelectedBoardRow();
+                HeadMountable tool = MainFrame.get().getMachineControls().getSelectedTool();
+                Camera camera = tool.getHead().getDefaultCamera();
+                MainFrame.get().getCameraViews().ensureCameraVisible(camera);
+                MovableUtils.moveToLocationAtSafeZ(camera, location);
+            });*/
+        }
+    };
 
     public class OpenRecentJobAction extends AbstractAction {
         private final File file;
@@ -1109,4 +1195,230 @@ public class JobPanel extends JPanel {
     private final TextStatusListener textStatusListener = text -> {
         MainFrame.get().setStatus(text);
     };
+    
+    class Dlg extends JDialog {
+        private JTextField textFieldPCBColumns;
+        private JTextField textFieldPCBRows;
+        private JTextField textFieldboardXSpacing;
+        private JTextField textFieldboardYSpacing;
+    	//int rows, columns;
+    	//double xSpacing, ySpacing;
+        
+        //private JTextField textFieldBottomFile;
+        //private final Action browseTopFileAction = new SwingAction();
+        //private final Action importAction = new SwingAction_2();
+        //private final Action cancelAction = new SwingAction_3();
+        
+        //private final Action browseTopFileAction = new SwingAction();
+        private final Action okAction = new SwingAction();
+        private final Action cancelAction = new SwingAction_1();
+        
+        //private JCheckBox chckbxCreateMissingParts;
+
+        public Dlg(Frame parent) {
+            super(parent, "", true);
+            getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
+
+            JPanel panel = new JPanel();
+            panel.setBorder(new TitledBorder(null, "Panelize Parameters ", TitledBorder.LEADING, TitledBorder.TOP,
+                    null, null));
+            getContentPane().add(panel);
+            
+            panel.setLayout(new FormLayout(
+                    new ColumnSpec[] {	      
+                    					FormSpecs.RELATED_GAP_COLSPEC,
+                    					FormSpecs.DEFAULT_COLSPEC,
+                    					FormSpecs.RELATED_GAP_COLSPEC,
+                    					FormSpecs.DEFAULT_COLSPEC,
+                    					FormSpecs.RELATED_GAP_COLSPEC},
+                    /*new ColumnSpec[] {	FormSpecs.RELATED_GAP_COLSPEC,      
+        					FormSpecs.DEFAULT_COLSPEC,          
+        					FormSpecs.RELATED_GAP_COLSPEC,      
+        					ColumnSpec.decode("default:grow"),  
+        					FormSpecs.RELATED_GAP_COLSPEC, 
+        					FormSpecs.DEFAULT_COLSPEC,},*/
+                    new RowSpec[] {		FormSpecs.RELATED_GAP_ROWSPEC, 
+                    					FormSpecs.DEFAULT_ROWSPEC,
+                    					FormSpecs.RELATED_GAP_ROWSPEC, 
+                    					FormSpecs.DEFAULT_ROWSPEC,
+                    					FormSpecs.RELATED_GAP_ROWSPEC, 
+                    					FormSpecs.DEFAULT_ROWSPEC,
+                    					FormSpecs.RELATED_GAP_ROWSPEC, 
+                    					FormSpecs.DEFAULT_ROWSPEC}));
+            
+
+
+            JLabel lblNumCols = new JLabel("Number of Columns");
+            panel.add(lblNumCols, "2, 2, right, default");
+            textFieldPCBColumns = new JTextField();
+            textFieldPCBColumns.setText("2");
+            panel.add(textFieldPCBColumns, "4, 2, fill, default");
+            textFieldPCBColumns.setColumns(10);
+            
+            JLabel lblNumRows = new JLabel("Number of Rows");
+            panel.add(lblNumRows, "2, 4, right, default");
+            textFieldPCBRows = new JTextField();
+            textFieldPCBRows.setText("2");
+            panel.add(textFieldPCBRows, "4, 4, fill, default");
+            
+            JLabel lblXSpacing = new JLabel("X Spacing");
+            panel.add(lblXSpacing, "2, 6, right, default");
+            textFieldboardXSpacing = new JTextField();
+            textFieldboardXSpacing.setText("0");
+            panel.add(textFieldboardXSpacing, "4, 6, fill, default");
+            
+            JLabel lblYSpacing = new JLabel("Y Spacing");
+            panel.add(lblYSpacing, "2, 8, right, default");
+            textFieldboardYSpacing = new JTextField();
+            textFieldboardYSpacing.setText("0");
+            panel.add(textFieldboardYSpacing, "4, 8, fill, default");
+              
+            JPanel panel_2 = new JPanel();
+            FlowLayout flowLayout = (FlowLayout) panel_2.getLayout();
+            flowLayout.setAlignment(FlowLayout.RIGHT);
+            getContentPane().add(panel_2);
+            
+            JButton btnCancel = new JButton("Cancel");
+            btnCancel.setAction(cancelAction);
+            panel_2.add(btnCancel);
+
+            JButton btnImport = new JButton("OK");
+            btnImport.setAction(okAction);
+            panel_2.add(btnImport);
+           
+            setSize(200, 400);
+            setLocationRelativeTo(parent);
+           
+            JRootPane rootPane = getRootPane();
+            KeyStroke stroke = KeyStroke.getKeyStroke("ESCAPE");
+            InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+            inputMap.put(stroke, "ESCAPE");
+            rootPane.getActionMap().put("ESCAPE", cancelAction);
+            
+            
+            
+            /*
+            Location loc =new Location(LengthUnit.Millimeters, 0, 0, 0, 0);
+            
+            newJob.setLocation(job0.getLocation().add
+            newJob.getLocation().add(new Location(0, 30, 0));
+            
+            newJob.
+            
+            getJob().addBoardLocation(newJob);*/
+            
+            /*Board board = job.getBoardLocations().Get
+            BoardLocation boardLocation = getSelectedBoardLocation();
+            Location loc = boardLocation.getLocation();
+            loc.X
+            boardLocation.
+            getJob().addBoardLocation(boardLocation);
+            
+            /*
+            if (boardLocation != null) {
+                getJob().removeBoardLocation(boardLocation);
+                boardLocationsTableModel.fireTableDataChanged();
+            }
+            
+            
+            //Board board = configuration.getBoard(file);
+            //boardLocation = new BoardLocation(board);
+            getJob().addBoardLocation(boardLocation);
+            // TODO: Move to a list property listener.*/
+            boardLocationsTableModel.fireTableDataChanged();
+
+            Helpers.selectLastTableRow(boardLocationsTable);
+        }
+
+        private class SwingAction extends AbstractAction {
+            public SwingAction() {
+                putValue(NAME, "OK");
+                putValue(SHORT_DESCRIPTION, "OK");
+            }
+
+            public void actionPerformed(ActionEvent e) {
+            	/*
+                FileDialog fileDialog = new FileDialog(Dlg.this);
+                fileDialog.setFilenameFilter(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File dir, String name) {
+                        return name.toLowerCase().endsWith(".csv");
+                    }
+                });
+                fileDialog.setVisible(true);
+                if (fileDialog.getFile() == null) {
+                    return;
+                }
+                File file = new File(new File(fileDialog.getDirectory()), fileDialog.getFile());
+                textFieldFileName.setText(file.getAbsolutePath());
+                */
+
+            	int cols = Integer.parseInt(textFieldPCBColumns.getText());
+            	int rows = Integer.parseInt(textFieldPCBRows.getText());
+            	double xSpacing = Double.parseDouble(textFieldboardXSpacing.getText());
+            	double ySpacing = Double.parseDouble(textFieldboardYSpacing.getText());
+            	
+            	for (int i=0; i< cols; i++){
+            		for (int j=0; j<rows; j++){
+            			
+            			// We already have board 0,0 in the list. No need to create it.
+            			if (i==0 && j==0)
+            				continue;
+            			
+            			// We'll always replicate the first pcb in the list
+                        BoardLocation rootPCB = getJob().getBoardLocations().get(0);
+                        double dimX = rootPCB.getBoard().getDimensions().getX();
+                        double dimY = rootPCB.getBoard().getDimensions().getY();
+                       
+                        // copy the existing object
+                        BoardLocation newPCB = new BoardLocation(rootPCB);
+                        newPCB.getBoard().setName(newPCB.getBoard().getName());
+                        
+                        double x = newPCB.getLocation().getX();
+                        double y = newPCB.getLocation().getY();
+                        double z = newPCB.getLocation().getZ();
+                        double rot = newPCB.getLocation().getRotation();
+                        
+                        newPCB.setLocation(new  Location(LengthUnit.Millimeters, x + (dimX + xSpacing) * i, y + (dimY + ySpacing) * j, z, rot)); 
+                        
+                        getJob().addBoardLocation(newPCB);            			
+            		}
+            	}
+            	
+                boardLocationsTableModel.fireTableDataChanged();
+
+                Helpers.selectLastTableRow(boardLocationsTable);
+                
+                setVisible(false);
+            }
+        }
+
+        
+        private class SwingAction_1 extends AbstractAction {
+            public SwingAction_1() {
+                putValue(NAME, "Cancel");
+                putValue(SHORT_DESCRIPTION, "Cancel");
+            }
+
+            public void actionPerformed(ActionEvent e) {
+                
+
+                
+                setVisible(false);
+            }
+        }
+        /*
+
+        private class SwingAction_3 extends AbstractAction {
+            public SwingAction_3() {
+                putValue(NAME, "Cancel");
+                putValue(SHORT_DESCRIPTION, "Cancel");
+            }
+
+            public void actionPerformed(ActionEvent e) {
+                setVisible(false);
+            }
+        }*/
+    }
+    
 }
