@@ -42,6 +42,8 @@ public class BoardLocationsTableModel extends AbstractTableModel {
             LengthCellValue.class, String.class, Boolean.class, Boolean.class};
 
     private Job job;
+    
+    private boolean suspendEventUpdates = false;
 
     public BoardLocationsTableModel(Configuration configuration) {
         this.configuration = configuration;
@@ -83,7 +85,21 @@ public class BoardLocationsTableModel extends AbstractTableModel {
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
+    	// BUGBUG: If a row was added by AutoPanelize feature, then we 
+    	// don't want to allow editing of any row other than row 0
+    	if (job.isUsingPanel())
+    		if (rowIndex >= 1)
+    			return false;
+    	
     	return (columnIndex != 0);
+    }
+    
+    public void SuspendEventUpdates(){
+    	suspendEventUpdates = true; 
+    }
+    
+    public void ResumeEventUpdates(){
+    	suspendEventUpdates = false;
     }
 
     @Override
@@ -93,54 +109,80 @@ public class BoardLocationsTableModel extends AbstractTableModel {
             if (columnIndex == 0) {
                 boardLocation.getBoard().setName((String) aValue);
             }
-            else if (columnIndex == 1) {
+            else if (columnIndex == 1) {  // Width
                 LengthCellValue value = (LengthCellValue) aValue;
                 Length length = value.getLength();
                 Location location = boardLocation.getBoard().getDimensions();
                 location = Length.setLocationField(configuration, location, length, Length.Field.X);
                 boardLocation.getBoard().setDimensions(location);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);   
+                }
             }
-            else if (columnIndex == 2) {
+            else if (columnIndex == 2) {  // Height
                 LengthCellValue value = (LengthCellValue) aValue;
                 Length length = value.getLength();
                 Location location = boardLocation.getBoard().getDimensions();
                 location = Length.setLocationField(configuration, location, length, Length.Field.Y);
                 boardLocation.getBoard().setDimensions(location);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);  
+                }
             }
-            else if (columnIndex == 3) {
+            else if (columnIndex == 3) {  // Side
                 boardLocation.setSide((Side) aValue);
-                fireTableCellUpdated(rowIndex, columnIndex);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);
+                }
             }
-            else if (columnIndex == 4) {
+            else if (columnIndex == 4) {  // X
                 LengthCellValue value = (LengthCellValue) aValue;
                 Length length = value.getLength();
                 Location location = boardLocation.getLocation();
                 location = Length.setLocationField(configuration, location, length, Length.Field.X);
                 boardLocation.setLocation(location);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);
+                }
             }
-            else if (columnIndex == 5) {
+            else if (columnIndex == 5) {  // Y
                 LengthCellValue value = (LengthCellValue) aValue;
                 Length length = value.getLength();
                 Location location = boardLocation.getLocation();
                 location = Length.setLocationField(configuration, location, length, Length.Field.Y);
                 boardLocation.setLocation(location);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);
+                }
             }
-            else if (columnIndex == 6) {
+            else if (columnIndex == 6) {  // Z
                 LengthCellValue value = (LengthCellValue) aValue;
                 Length length = value.getLength();
                 Location location = boardLocation.getLocation();
                 location = Length.setLocationField(configuration, location, length, Length.Field.Z);
                 boardLocation.setLocation(location);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);
+                }
             }
-            else if (columnIndex == 7) {
+            else if (columnIndex == 7) {  // Theta
                 boardLocation.setLocation(boardLocation.getLocation().derive(null, null, null,
                         Double.parseDouble(aValue.toString())));
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);
+                }
             }
-            else if (columnIndex == 8) {
+            else if (columnIndex == 8) {  // Enabled
                 boardLocation.setEnabled((Boolean) aValue);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);
+                }
             }
-            else if (columnIndex == 9) {
+            else if (columnIndex == 9) {  // Check Fids
                 boardLocation.setCheckFiducials((Boolean) aValue);
+                if (!suspendEventUpdates){
+                	fireTableCellUpdated(rowIndex, columnIndex);
+                }
             }
         }
         catch (Exception e) {

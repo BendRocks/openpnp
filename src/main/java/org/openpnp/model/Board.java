@@ -206,5 +206,5 @@ public class Board extends AbstractModelObject implements PropertyChangeListener
         if (evt.getSource() != Board.this || !evt.getPropertyName().equals("dirty")) {
             setDirty(true);
         }
-    }
+   }
 }

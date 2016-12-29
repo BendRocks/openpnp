@@ -19,6 +19,9 @@
 
 package org.openpnp.model;
 
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+
 import org.openpnp.model.Board.Side;
 import org.simpleframework.xml.Attribute;
 import org.simpleframework.xml.Element;
@@ -44,10 +47,12 @@ public class BoardLocation extends AbstractModelObject {
         setLocation(new Location(LengthUnit.Millimeters));
     }
    
+    // Copy constructor needed for deep copy of object. Note that none of the fields below 
+    // need a deep copy. 
     public BoardLocation(BoardLocation obj){
-    	this.location = obj.location;       // Bugbug: Make copy constructor??
-    	this.side = obj.side;               // Bugbug: Make copy constructor??
-    	this.board = obj.board;             // Bugbug: Make copy constructor??
+    	this.location = obj.location;       
+    	this.side = obj.side;               
+    	this.board = obj.board;             
     	this.boardFile = obj.boardFile;
     	this.checkFiducials = obj.checkFiducials;
     	this.enabled = obj.enabled;
@@ -89,9 +94,9 @@ public class BoardLocation extends AbstractModelObject {
         return board;
     }
 
-    public void setBoard(Board board) {
-        Board oldValue = this.board;
-        this.board = board;
+    public void setBoard(Board board) {    	
+        Board oldValue = this.board;        
+        this.board = board;  
         firePropertyChange("board", oldValue, board);
     }
 
@@ -127,4 +132,13 @@ public class BoardLocation extends AbstractModelObject {
     public String toString() {
         return String.format("board (%s), location (%s), side (%s)", boardFile, location, side);
     }
+    
+    /*
+    public void propertyChange(PropertyChangeEvent evt) {
+    	// BUGBUG: Want to be notified when board dimensions change. Propagate this
+    	// up to Job
+        if (evt.getSource() == board && evt.getPropertyName().equals("dimensions")) {
+        	firePropertyChange("dimensions", null, null);
+        }
+    }*/
 }

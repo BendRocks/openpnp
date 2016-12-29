@@ -25,6 +25,14 @@ public class PCBPanel extends AbstractModelObject {
         YGap = new Length(0, LengthUnit.Millimeters);
     }
 	
+	
+	public PCBPanel(int cols, int rows, Length xGap, Length yGap, Location fid1, Location fid2)
+	{
+		Columns = cols; Rows = rows;
+		XGap = xGap; YGap = yGap;
+		Fid1 = fid1; Fid2 = fid2;
+	}
+	
 	public int getColumns() {
         return Columns;
     }
@@ -84,4 +92,6 @@ public class PCBPanel extends AbstractModelObject {
 	     this.Fid2 = fid;
 	     firePropertyChange("PanelFid", oldValue, fid);
 	}	
+	
+	
 }

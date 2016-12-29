@@ -37,7 +37,7 @@ import org.simpleframework.xml.core.Commit;
 @Root(name = "openpnp-job")
 public class Job extends AbstractModelObject implements PropertyChangeListener {
 	@Element
-	private PCBPanel Panel = new PCBPanel();
+	private PCBPanel pcbPanel = new PCBPanel();
 	
     @ElementList
     private ArrayList<BoardLocation> boardLocations = new ArrayList<>();
@@ -47,6 +47,7 @@ public class Job extends AbstractModelObject implements PropertyChangeListener {
 
     public Job() {
         addPropertyChangeListener(this);
+
     }
 
     @SuppressWarnings("unused")
@@ -76,7 +77,39 @@ public class Job extends AbstractModelObject implements PropertyChangeListener {
         firePropertyChange("boardLocations", oldValue, boardLocations);
         boardLocation.removePropertyChangeListener(this);
     }
-
+    
+    public void removeAllBoards()
+    {
+    	// BUGBUG: Verify this is reasonable way of removing all boards. This is 
+    	// used only to delete a panel
+    	ArrayList<BoardLocation> oldValue = boardLocations;
+        boardLocations = new ArrayList<>();
+        firePropertyChange("boardLocations", (Object)oldValue, boardLocations);
+        
+    	for (int i=0; i<oldValue.size(); i++)
+    		oldValue.get(i).removePropertyChangeListener(this);
+    }
+    
+    public void addPanel(PCBPanel panel){
+    	pcbPanel = panel;
+    }
+    
+    public PCBPanel getPanel(){
+    	return pcbPanel;
+    }
+    
+    public void removePanel(){
+    	pcbPanel = new PCBPanel();
+    }
+    
+    public boolean isUsingPanel()
+    {
+    	if (pcbPanel != null && (pcbPanel.getRows() > 1) || (pcbPanel.getColumns() > 1))
+    		return true;
+    	
+    	return false;
+    }
+    
     public File getFile() {
         return file;
     }
@@ -100,6 +133,6 @@ public class Job extends AbstractModelObject implements PropertyChangeListener {
     public void propertyChange(PropertyChangeEvent evt) {
         if (evt.getSource() != Job.this || !evt.getPropertyName().equals("dirty")) {
             setDirty(true);
-        }
+        }  
     }
 }

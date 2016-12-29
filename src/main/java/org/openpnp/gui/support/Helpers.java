@@ -68,6 +68,18 @@ public class Helpers {
         index = table.convertRowIndexToView(index);
         table.addRowSelectionInterval(index, index);
     }
+    
+    /**
+     * Select the first row in a table. 
+     * 
+     * @param table
+     */
+    public static void selectFirstTableRow(JTable table) {
+        table.clearSelection();
+        int index = 0;
+        index = table.convertRowIndexToView(index);
+        table.addRowSelectionInterval(index, index);
+    }
 
     /**
      * Create a unique name consisting of the prefix and an integer. The name is guaranteed to be
