@@ -84,23 +84,24 @@ public class Job extends AbstractModelObject implements PropertyChangeListener {
     	// used only to delete a panel
     	ArrayList<BoardLocation> oldValue = boardLocations;
         boardLocations = new ArrayList<>();
+        
         firePropertyChange("boardLocations", (Object)oldValue, boardLocations);
         
     	for (int i=0; i<oldValue.size(); i++)
     		oldValue.get(i).removePropertyChangeListener(this);
     }
     
-    public void addPanel(PCBPanel panel){
+    public void setPCBPanel(PCBPanel panel){
     	pcbPanel = panel;
     }
     
-    public PCBPanel getPanel(){
+    public PCBPanel getPCBPanel(){
     	return pcbPanel;
     }
     
-    public void removePanel(){
-    	pcbPanel = new PCBPanel();
-    }
+   // public void removePCBPanel(){
+   // 	pcbPanel = new PCBPanel();
+   // }
     
     public boolean isUsingPanel()
     {

@@ -3,6 +3,7 @@ package org.openpnp.spi;
 import org.openpnp.model.BoardLocation;
 import org.openpnp.model.Location;
 import org.openpnp.model.Part;
+import org.openpnp.model.Placement;
 
 
 /**
@@ -11,6 +12,7 @@ import org.openpnp.model.Part;
  * future expansion can occur without requiring configuration changes. 
  */
 public interface FiducialLocator extends PropertySheetHolder {
+	public Location locateBoard(BoardLocation boardLocation, Placement fid1, Placement fid2) throws Exception;
     public Location locateBoard(BoardLocation boardLocation) throws Exception;
     public Location getHomeFiducialLocation(Location location, Part part ) throws Exception;
 }

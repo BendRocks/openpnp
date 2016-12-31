@@ -24,6 +24,7 @@ import java.awt.Color;
 import java.awt.FileDialog;
 import java.awt.FlowLayout;
 import java.awt.Frame;
+import java.awt.GridLayout;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeEvent;
@@ -50,7 +51,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
-import javax.swing.JSeparator;
+import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
@@ -58,7 +59,9 @@ import javax.swing.JTextField;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ListSelectionEvent;
@@ -72,14 +75,6 @@ import org.openpnp.events.JobLoadedEvent;
 import org.openpnp.events.PlacementSelectedEvent;
 import org.openpnp.gui.components.AutoSelectTextTable;
 import org.openpnp.gui.importer.BoardImporter;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_2;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_3;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_2;
-//import org.openpnp.gui.importer.DipTraceImporter.Dlg.SwingAction_3;
 import org.openpnp.gui.processes.TwoPlacementBoardLocationProcess;
 import org.openpnp.gui.support.ActionGroup;
 import org.openpnp.gui.support.Helpers;
@@ -93,7 +88,6 @@ import org.openpnp.model.BoardPad;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.Job;
 import org.openpnp.model.Length;
-import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
 import org.openpnp.model.PCBPanel;
 import org.openpnp.model.Placement;
@@ -188,11 +182,12 @@ public class JobPanel extends JPanel {
         boardLocationSelectionActionGroup = new ActionGroup(removeBoardAction,
                 captureCameraBoardLocationAction, captureToolBoardLocationAction,
                 moveCameraToBoardLocationAction, moveToolToBoardLocationAction,
-                twoPointLocateBoardLocationAction, fiducialCheckAction /*, panelizeAction, panelizeXOutAction*/);
+                twoPointLocateBoardLocationAction, fiducialCheckAction);
         boardLocationSelectionActionGroup.setEnabled(false);
         
         panelizeAction.setEnabled(false);
         panelizeXOutAction.setEnabled(false);
+        panelizeFiducialCheck.setEnabled(false);
         
         boardLocationsTableModel = new BoardLocationsTableModel(configuration);
 
@@ -212,21 +207,21 @@ public class JobPanel extends JPanel {
         	{
         		// One of 3 things can be happening here: 
         		// First is row 0 is being edited. In normal mode, nothing special needs to be done
-        		// In Auto Panelize mode, the computed board must be updated.
+        		// In Auto Panelize mode, the computed panel PCBs must be updated.
         		// The second is that row 1 or higher needs to be edited. This can only happen when
         		// NOT in autopanelize mode as the editing is blocked in the BoardLocationTableModel class
-        		// Finally, when the table wants to update itself (eg due to TableDataChange event) it 
+        		// Finally, when the table wants to update itself (eg due to TableDataChange event being fired) it 
         		// will set the first row to 0 and the last row to 2147483647 (maxint)
         		
-        		// Here, we check for each of these. 
-        		// Was the first line of the table edited? If so, and we're in auto-panelize mode, then
-        		// the table values will be re-calculated
+        		// Below, we check for each of these. 
         		if (e.getFirstRow() == 0 && e.getLastRow() == 0){
-        			populatePanelIntoTable();  // This checks if we're in autopanelize mode
+        			// Here, the first row is being edited. The function below will check if 
+        			// we're in autopanelize mode and update other rows accordingly
+        			populatePanelSettingsIntoBoardLocations();  
         		}
         		else if (e.getFirstRow() > 0 && e.getLastRow() <= Integer.MAX_VALUE){
         			// Here, we're not in auto panelize mode (since row 1 or higher could be edited. 
-        			// Fall through
+        			// Do nothing
         		}
         		else if (e.getFirstRow() == 0 && e.getLastRow() == Integer.MAX_VALUE)
         		{
@@ -246,42 +241,7 @@ public class JobPanel extends JPanel {
                         BoardLocation boardLocation = getSelectedBoardLocation();
                         boardLocationSelectionActionGroup.setEnabled(boardLocation != null);
 
-                        //
-                        // Panelize icons are only enabled IF
-                        // 1. A single PCB is loaded OR
-                        // 2. The autopanelize feature is already in use
-                        //
-                        if ( getJob().getBoardLocations().size() == 1 || getJob().isUsingPanel()){
-                        	panelizeAction.setEnabled(true);
-                        	panelizeXOutAction.setEnabled(true);
-                        }
-                        else{
-                        	
-                        	panelizeAction.setEnabled(false);
-                        	panelizeXOutAction.setEnabled(false);
-                        }
-                        
-                        // The add existing/new PC icons are only enabled IF
-                        // 1. The autopanelize feature is not in use
-
-                        if (getJob().isUsingPanel() == false){
-                        	newBoardAction.setEnabled(true);
-                        	addBoardAction.setEnabled(true);
-                        }
-                        else{
-                        	newBoardAction.setEnabled(false);
-                        	addBoardAction.setEnabled(false);
-                        }
-                        
-                        // The delete PCB icon is only enabled IF
-                        // 1. autopanelize is not in use OR
-                        // 2. autopanelize is in use and row 0 (first pcb) is selected
-                        if (getJob().isUsingPanel() == false || (getJob().isUsingPanel() && boardLocationsTable.getSelectedRow() == 0)){
-                        	removeBoardAction.setEnabled(true);
-                        }
-                        else{
-                        	removeBoardAction.setEnabled(false);
-                        }
+                        updatePanelizationIconState();
                         
                         jobPlacementsPanel.setBoardLocation(boardLocation);
                         jobPastePanel.setBoardLocation(boardLocation);
@@ -367,6 +327,10 @@ public class JobPanel extends JPanel {
         JButton btnPanelizeXOut = new JButton(panelizeXOutAction);
         toolBarBoards.add(btnPanelizeXOut);
         btnPanelizeXOut.setHideActionText(true);
+        
+        JButton btnPanelizeFidCheck = new JButton(panelizeFiducialCheck);
+        toolBarBoards.add(btnPanelizeFidCheck);
+        btnPanelizeFidCheck.setHideActionText(true);
 
         pnlBoards.add(new JScrollPane(boardLocationsTable));
         JPanel pnlRight = new JPanel();
@@ -904,14 +868,50 @@ public class JobPanel extends JPanel {
         });
     }
     
-    private void populatePanelIntoTable(){
+    private void updatePanelizationIconState(){
+        // Panelize icons are only enabled IF
+        // 1. A single PCB is loaded OR
+        // 2. The autopanelize feature is already in use
+        if ( getJob().getBoardLocations().size() == 1 || getJob().isUsingPanel()){
+        	panelizeAction.setEnabled(true);
+        }
+        else{
+        	panelizeAction.setEnabled(false);
+        	
+        }
+        
+        // The add existing/new PC icons are only enabled IF
+        // 1. The autopanelize feature is not in use
+        if (getJob().isUsingPanel() == false){
+        	newBoardAction.setEnabled(true);
+        	addBoardAction.setEnabled(true);
+        	panelizeFiducialCheck.setEnabled(false);
+        	panelizeXOutAction.setEnabled(false);
+        }
+        else{
+        	newBoardAction.setEnabled(false);
+        	addBoardAction.setEnabled(false);
+        	panelizeFiducialCheck.setEnabled(true);
+        	panelizeXOutAction.setEnabled(true);
+        }
+        
+        // The delete PCB icon is only enabled IF
+        // 1. autopanelize is not in use OR
+        // 2. autopanelize is in use and row 0 (first pcb) is selected
+        if (getJob().isUsingPanel() == false || (getJob().isUsingPanel() && boardLocationsTable.getSelectedRow() == 0)){
+        	removeBoardAction.setEnabled(true);
+        }
+        else{
+        	removeBoardAction.setEnabled(false);
+        }
+    }
+    
+    
+    private void populatePanelSettingsIntoBoardLocations(){
     	if (getJob().isUsingPanel())
-    	{
-    		boardLocationsTableModel.SuspendEventUpdates();
-    		
-    		PCBPanel pcbPanel = getJob().getPanel();
-    		int totalBoards = pcbPanel.getColumns() * pcbPanel.getRows() - 1;
-    		
+    	{    		
+    		PCBPanel pcbPanel = getJob().getPCBPanel();
+
     		BoardLocation rootPCB = getJob().getBoardLocations().get(0);
     		
     		getJob().removeAllBoards();
@@ -920,9 +920,8 @@ public class JobPanel extends JPanel {
 			double pcbWidthX = rootPCB.getBoard().getDimensions().getX();
 			double pcbHeightY = rootPCB.getBoard().getDimensions().getY();
 			
-			for (int i=0; i< pcbPanel.getColumns(); i++){
-				for (int j=0; j<pcbPanel.getRows(); j++){
-					
+			for (int j=0; j<pcbPanel.getRows(); j++){
+				for (int i=0; i< pcbPanel.getColumns(); i++){
 					// We already have board 0,0 in the list as this is the root PCB. No need to create it.
 					if (i==0 && j==0)
 					continue;
@@ -941,7 +940,6 @@ public class JobPanel extends JPanel {
 				}
 			}
 			
-			boardLocationsTableModel.ResumeEventUpdates();
             boardLocationsTableModel.fireTableDataChanged();
             Helpers.selectFirstTableRow(boardLocationsTable);
     	}
@@ -1022,14 +1020,15 @@ public class JobPanel extends JPanel {
                 Board board = configuration.getBoard(file);
                 BoardLocation boardLocation = new BoardLocation(board);
                 getJob().addBoardLocation(boardLocation);
-
-
+                
                 Helpers.selectLastTableRow(boardLocationsTable);
             }
             catch (Exception e) {
                 e.printStackTrace();
                 MessageBoxes.errorBox(frame, "Unable to create new board", e.getMessage());
             }
+            
+            updatePanelizationIconState();
         }
     };
 
@@ -1069,6 +1068,8 @@ public class JobPanel extends JPanel {
                 e.printStackTrace();
                 MessageBoxes.errorBox(frame, "Board load failed", e.getMessage());
             }
+            
+            updatePanelizationIconState();
         }
     };
 
@@ -1084,12 +1085,10 @@ public class JobPanel extends JPanel {
         	if (getJob().isUsingPanel()){
         		
         		getJob().removeAllBoards();
-        		boardLocationsTableModel.fireTableDataChanged();
+        		getJob().setPCBPanel(new PCBPanel());
         		
-        		// BUGBUG: It would be nice to have these set in an event handler someplace 
-        		panelizeAction.setEnabled(false);
-            	panelizeXOutAction.setEnabled(false);
-            
+        		boardLocationsTableModel.fireTableDataChanged();
+        		 
             	newBoardAction.setEnabled(true);
             	addBoardAction.setEnabled(true);
             	removeBoardAction.setEnabled(true);
@@ -1101,6 +1100,8 @@ public class JobPanel extends JPanel {
 	                boardLocationsTableModel.fireTableDataChanged();
 	            }
         	}
+        	
+        	updatePanelizationIconState();
         }
     };
 
@@ -1229,7 +1230,7 @@ public class JobPanel extends JPanel {
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
-        	 Dlg dlg = new Dlg(frame);
+        	 DlgAutoPanelize dlg = new DlgAutoPanelize(frame);
              dlg.setVisible(true);
         }
     };  
@@ -1244,9 +1245,43 @@ public class JobPanel extends JPanel {
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
-        	 Dlg dlg = new Dlg(frame);
-             dlg.setVisible(true);
+        	DlgPanelXOut dlg = new DlgPanelXOut(frame);
+            dlg.setVisible(true);
         }
+    };
+    
+    public final Action panelizeFiducialCheck = new AbstractAction() {
+        {
+            putValue(SMALL_ICON, Icons.autoPanelizeFidCheck);
+            putValue(NAME, "Panelized Fid Check");
+            putValue(SHORT_DESCRIPTION,
+                    "Perform a fiducial check on a panel and update its position and rotation");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+        	 UiUtils.submitUiMachineTask(() -> {
+                 Helpers.selectFirstTableRow(boardLocationsTable);
+                 
+        		 Location fid1 = getJob().getPCBPanel().getFid1();
+        		 Location fid2 = getJob().getPCBPanel().getFid2();
+        		 Placement p1 = new Placement("PanelFid1");
+        		 Placement p2 = new Placement("PanelFid2");
+        		 p1.setLocation(fid1);
+        		 p2.setLocation(fid2);
+        		 
+                 Location location = Configuration.get().getMachine().getFiducialLocator()
+                         .locateBoard(getSelectedBoardLocation(), p1, p2);
+                 getSelectedBoardLocation().setLocation(location);
+                 refreshSelectedBoardRow();
+                 HeadMountable tool = MainFrame.get().getMachineControls().getSelectedTool();
+                 Camera camera = tool.getHead().getDefaultCamera();
+                 MainFrame.get().getCameraViews().ensureCameraVisible(camera);
+                 MovableUtils.moveToLocationAtSafeZ(camera, location);
+        
+        	 });
+        }
+        
     };
 
     public class OpenRecentJobAction extends AbstractAction {
@@ -1309,9 +1344,9 @@ public class JobPanel extends JPanel {
         MainFrame.get().setStatus(text);
     };
     
-    class Dlg extends JDialog {
-        private JTextField textFieldPCBColumns;
-        private JTextField textFieldPCBRows;
+    class DlgAutoPanelize extends JDialog {
+        private JSpinner textFieldPCBColumns;
+        private JSpinner textFieldPCBRows;
         private JTextField textFieldboardXSpacing;
         private JTextField textFieldboardYSpacing;
         private JTextField textFieldboardPanelFid1X;
@@ -1322,8 +1357,8 @@ public class JobPanel extends JPanel {
         private final Action okAction = new SwingAction();
         private final Action cancelAction = new SwingAction_1();
         
-        public Dlg(Frame parent) {
-            super(parent, "", true);
+        public DlgAutoPanelize(Frame parent) {
+            super(parent, "Panelization Settings", true);
             getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
 
             JPanel panel = new JPanel();
@@ -1331,6 +1366,11 @@ public class JobPanel extends JPanel {
                     null, null));
             getContentPane().add(panel);
             
+            panel.setBorder(new EmptyBorder(20,20,20,20));
+            
+            panel.setLayout(new GridLayout(0, 2, 20, 20));
+            
+            /*
             panel.setLayout(new FormLayout(
                     new ColumnSpec[] {	      
                     					FormSpecs.RELATED_GAP_COLSPEC,
@@ -1355,72 +1395,73 @@ public class JobPanel extends JPanel {
                     					FormSpecs.DEFAULT_ROWSPEC,       // fid2x
                     					FormSpecs.RELATED_GAP_ROWSPEC, 
                     					FormSpecs.DEFAULT_ROWSPEC,       // fid2y
-                    					FormSpecs.RELATED_GAP_ROWSPEC}));     
+                    					FormSpecs.RELATED_GAP_ROWSPEC}));   */  
             
 
 
             // Row and column
-            JLabel lblNumCols = new JLabel("Number of Columns");
-            panel.add(lblNumCols, "2, 2, right, default");
-            textFieldPCBColumns = new JTextField();
-            textFieldPCBColumns.setText("2");
-            panel.add(textFieldPCBColumns, "4, 2, fill, default");
-            textFieldPCBColumns.setColumns(10);
+            int rows = getJob().getPCBPanel().getRows();
+            int cols = getJob().getPCBPanel().getColumns();
             
-            JLabel lblNumRows = new JLabel("Number of Rows");
-            panel.add(lblNumRows, "2, 4, right, default");
-            textFieldPCBRows = new JTextField();
-            textFieldPCBRows.setText("2");
+            if (rows == 1 && cols == 1){
+            	rows = 5; cols = 4;
+            }
+            
+            panel.add(new JLabel("Number of Columns", JLabel.RIGHT), "2, 2, right, default");
+            textFieldPCBColumns = new JSpinner(new SpinnerNumberModel(cols, 1, 6, 1));   
+            panel.add(textFieldPCBColumns, "4, 2, fill, default");
+            
+            panel.add(new JLabel("Number of Rows", JLabel.RIGHT), "2, 4, right, default");
+            textFieldPCBRows = new JSpinner(new SpinnerNumberModel(rows, 1, 6, 1));              
             panel.add(textFieldPCBRows, "4, 4, fill, default");
             
             // Spacing
-            JLabel lblXSpacing = new JLabel("X Spacing");
-            panel.add(lblXSpacing, "2, 6, right, default");
+            panel.add(new JLabel("X Spacing", JLabel.RIGHT), "2, 6, right, default");
             textFieldboardXSpacing = new JTextField();
-            textFieldboardXSpacing.setText("0.00");
+            textFieldboardXSpacing.setText(String.format("%.3f", getJob().getPCBPanel().getXGap().getValue()));
             panel.add(textFieldboardXSpacing, "4, 6, fill, default");
             
-            JLabel lblYSpacing = new JLabel("Y Spacing");
-            panel.add(lblYSpacing, "2, 8, right, default");
+            panel.add(new JLabel("Y Spacing", JLabel.RIGHT), "2, 8, right, default");
             textFieldboardYSpacing = new JTextField();
-            textFieldboardYSpacing.setText("0.00");
+            textFieldboardYSpacing.setText(String.format("%.3f", getJob().getPCBPanel().getYGap().getValue()));
             panel.add(textFieldboardYSpacing, "4, 8, fill, default");
             
             // Fiducial coords
-            panel.add(new JLabel("Panel Fid1 X"), "2, 10, right, default");
+            panel.add(new JLabel("Panel Fid1 X", JLabel.RIGHT), "2, 10, right, default");
             textFieldboardPanelFid1X = new JTextField();
-            textFieldboardPanelFid1X.setText("0.00");
+            textFieldboardPanelFid1X.setText(String.format("%.3f", getJob().getPCBPanel().getFid1().getX()));
             panel.add(textFieldboardPanelFid1X, "4, 10, fill, default");
             
-            panel.add(new JLabel("Panel Fid1 Y"), "2, 12, right, default");
+            panel.add(new JLabel("Panel Fid1 Y", JLabel.RIGHT), "2, 12, right, default");
             textFieldboardPanelFid1Y = new JTextField();;
-            textFieldboardPanelFid1Y.setText("0.00");
+            textFieldboardPanelFid1Y.setText(String.format("%.3f", getJob().getPCBPanel().getFid1().getY()));
             panel.add(textFieldboardPanelFid1Y, "4, 12, fill, default");    
             
-            panel.add(new JLabel("Panel Fid2 X"), "2, 14, right, default");
+            panel.add(new JLabel("Panel Fid2 X", JLabel.RIGHT), "2, 14, right, default");
             textFieldboardPanelFid2X = new JTextField();
-            textFieldboardPanelFid2X.setText("0.00");
+            textFieldboardPanelFid2X.setText(String.format("%.3f", getJob().getPCBPanel().getFid2().getX()));
             panel.add(textFieldboardPanelFid2X, "4, 14, fill, default");
             
-            panel.add(new JLabel("Panel Fid2 Y"), "2, 16, right, default");
+            panel.add(new JLabel("Panel Fid2 Y", JLabel.RIGHT), "2, 16, right, default");
             textFieldboardPanelFid2Y = new JTextField();;
-            textFieldboardPanelFid2Y.setText("0.00");
+            textFieldboardPanelFid2Y.setText(String.format("%.3f", getJob().getPCBPanel().getFid2().getY()));
             panel.add(textFieldboardPanelFid2Y, "4, 16, fill, default");              
               
-            JPanel panel_2 = new JPanel();
-            FlowLayout flowLayout = (FlowLayout) panel_2.getLayout();
+            JPanel footerPanel = new JPanel();
+            FlowLayout flowLayout = (FlowLayout) footerPanel.getLayout();
             flowLayout.setAlignment(FlowLayout.RIGHT);
-            getContentPane().add(panel_2);
+            getContentPane().add(footerPanel);
             
             JButton btnCancel = new JButton("Cancel");
             btnCancel.setAction(cancelAction);
-            panel_2.add(btnCancel);
+            footerPanel.add(btnCancel);
 
             JButton btnImport = new JButton("OK");
             btnImport.setAction(okAction);
-            panel_2.add(btnImport);
+            footerPanel.add(btnImport);
            
-            setSize(200, 400);
+            setSize(300, 400);
+            setResizable(false);
             setLocationRelativeTo(parent);
            
             JRootPane rootPane = getRootPane();
@@ -1428,10 +1469,6 @@ public class JobPanel extends JPanel {
             InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
             inputMap.put(stroke, "ESCAPE");
             rootPane.getActionMap().put("ESCAPE", cancelAction);
-            
-            //boardLocationsTableModel.fireTableDataChanged();
-
-            //Helpers.selectLastTableRow(boardLocationsTable);
         }
 
         private class SwingAction extends AbstractAction {
@@ -1441,8 +1478,8 @@ public class JobPanel extends JPanel {
             }
 
             public void actionPerformed(ActionEvent e) {
-            	int cols = Integer.parseInt(textFieldPCBColumns.getText());
-            	int rows = Integer.parseInt(textFieldPCBRows.getText());
+            	int cols = (int)(textFieldPCBColumns.getValue());
+            	int rows = (int)(textFieldPCBRows.getValue());
             	double gapX = Double.parseDouble(textFieldboardXSpacing.getText());
             	double gapY = Double.parseDouble(textFieldboardYSpacing.getText());
             	double globalFid1X = Double.parseDouble(textFieldboardPanelFid1X.getText());
@@ -1459,8 +1496,8 @@ public class JobPanel extends JPanel {
             									new Location(Configuration.get().getSystemUnits(), globalFid1X, globalFid1Y, rootPCB.getLocation().getZ(), rootPCB.getLocation().getRotation()), 
             									new Location(Configuration.get().getSystemUnits(), globalFid2X, globalFid2Y, rootPCB.getLocation().getZ(), rootPCB.getLocation().getRotation()));
             	
-            	getJob().addPanel(pcbPanel);
-            	populatePanelIntoTable();
+            	getJob().setPCBPanel(pcbPanel);
+            	populatePanelSettingsIntoBoardLocations();
                 setVisible(false);
             }
         }
@@ -1472,14 +1509,106 @@ public class JobPanel extends JPanel {
                 putValue(SHORT_DESCRIPTION, "Cancel");
             }
 
-            public void actionPerformed(ActionEvent e) {
-                
+            public void actionPerformed(ActionEvent e) {                
+                setVisible(false);
+            }
+        }    
+    }
+    
+    class DlgPanelXOut extends JDialog {
+    	private JPanel checkBoxPanel;
+        private JTextField textFieldPCBColumns;
+        
+        private final Action okAction = new SwingAction();
+        private final Action cancelAction = new SwingAction_1();
+        
+        
+        public DlgPanelXOut(Frame parent) {
+        	super(parent, "", true);
+            getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
 
-                
+            // Header
+            JPanel headerPanel = new JPanel();
+            //headerPanel.setLayout(new FlowLayout());
+            headerPanel.add(new JLabel("<html>Select the PCB to be DISABLED in the panel.<p>Note that the lower left panel is designated 1,1</html>"));
+            getContentPane().add(headerPanel);
+            
+            // Panel with Checkboxes
+            int cols = getJob().getPCBPanel().getColumns();
+            int rows = getJob().getPCBPanel().getRows();
+            checkBoxPanel = new JPanel();
+            checkBoxPanel.setBorder(new EmptyBorder(0, 30, 0, 0));
+            checkBoxPanel.setLayout(new GridLayout(rows,cols));
+            getContentPane().add(checkBoxPanel);
+            
+            // Checkboxes will be added to the grid as columns from upper left to lower right. The 
+            // board locations are stored as a linear array from lower left to upper right. To help
+            // sort this out, we store the linear array offset with each checkbox so that we don't
+            // have to deal with this mapping outside of the few lines below.
+            for (int i=0; i<rows*cols; i++){
+            	int x = i % cols;
+            	int y = i / cols;
+        		String lbl = String.format("%d,%d", x + 1, rows - y);
+        		JCheckBox cb = new JCheckBox(lbl);
+        		cb.putClientProperty("index", (rows-y-1) * cols + x);
+        		checkBoxPanel.add(cb);
+            }
+            		
+            // Footer
+        	JPanel footerPanel = new JPanel();
+            FlowLayout flowLayout = (FlowLayout) footerPanel.getLayout();
+            flowLayout.setAlignment(FlowLayout.RIGHT);
+            getContentPane().add(footerPanel);
+            
+            JButton btnCancel = new JButton("Cancel");
+            btnCancel.setAction(cancelAction);
+            footerPanel.add(btnCancel);
+
+            JButton btnImport = new JButton("OK");
+            btnImport.setAction(okAction);
+            footerPanel.add(btnImport);
+           
+            setSize(400, 400);
+            setLocationRelativeTo(parent);
+           
+            JRootPane rootPane = getRootPane();
+            KeyStroke stroke = KeyStroke.getKeyStroke("ESCAPE");
+            InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+            inputMap.put(stroke, "ESCAPE");
+            rootPane.getActionMap().put("ESCAPE", cancelAction);
+        }
+        
+        private class SwingAction extends AbstractAction {
+            public SwingAction() {
+                putValue(NAME, "OK");
+                putValue(SHORT_DESCRIPTION, "OK");
+            }
+
+            public void actionPerformed(ActionEvent e) {                
+                for (int i=0; i<checkBoxPanel.getComponentCount(); i++){
+                	JCheckBox cb = (JCheckBox)checkBoxPanel.getComponent(i);
+                	int index = (int)cb.getClientProperty("index");
+                	getJob().getBoardLocations().get(index).setEnabled(!cb.isSelected());
+                }
+            	
+                boardLocationsTableModel.fireTableDataChanged();
+                Helpers.selectFirstTableRow(boardLocationsTable);
+
                 setVisible(false);
             }
         }
+
         
-    }
+        private class SwingAction_1 extends AbstractAction {
+            public SwingAction_1() {
+                putValue(NAME, "Cancel");
+                putValue(SHORT_DESCRIPTION, "Cancel");
+            }
+
+            public void actionPerformed(ActionEvent e) {                
+                setVisible(false);
+            }
+        }          
+    }    
     
 }

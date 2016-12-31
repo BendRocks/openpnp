@@ -21,6 +21,7 @@ import org.openpnp.model.BoardLocation;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.Footprint;
 import org.openpnp.model.Length;
+import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
 import org.openpnp.model.Part;
 import org.openpnp.model.Placement;
@@ -56,13 +57,18 @@ public class ReferenceFiducialLocator implements FiducialLocator {
 
         // Find the two that are most distant from each other
         List<Placement> mostDistant = getMostDistantPlacements(fiducials);
-
+        
         Placement placementA = mostDistant.get(0);
         Placement placementB = mostDistant.get(1);
-
+        
         Logger.debug("Chose {} and {}", placementA.getId(), placementB.getId());
-
-        // Run the fiducial check on each and get their actual locations
+        
+        return locateBoard(boardLocation, placementA, placementB);
+    }
+    
+    public Location locateBoard(BoardLocation boardLocation, Placement placementA, Placement placementB) throws Exception {
+    
+    	// Run the fiducial check on each and get their actual locations
         Location actualLocationA = getFiducialLocation(boardLocation, placementA);
         if (actualLocationA == null) {
             throw new Exception("Unable to locate first fiducial.");
