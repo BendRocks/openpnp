@@ -29,6 +29,7 @@ import javax.swing.Action;
 
 import org.openpnp.gui.support.PropertySheetWizardAdapter;
 import org.openpnp.gui.support.Wizard;
+import org.openpnp.machine.reference.camera.FileCamera;
 import org.openpnp.machine.reference.camera.ImageCamera;
 import org.openpnp.machine.reference.camera.OnvifIPCamera;
 import org.openpnp.machine.reference.camera.OpenCvCamera;
@@ -193,6 +194,7 @@ public class ReferenceMachine extends AbstractMachine {
         l.add(OpenCvCamera.class);
         l.add(OnvifIPCamera.class);
         l.add(ImageCamera.class);
+        l.add(FileCamera.class);
         l.add(SimulatedUpCamera.class);
         return l;
     }
