@@ -33,6 +33,7 @@ import org.openpnp.machine.reference.camera.ImageCamera;
 import org.openpnp.machine.reference.camera.OnvifIPCamera;
 import org.openpnp.machine.reference.camera.OpenCvCamera;
 import org.openpnp.machine.reference.camera.SimulatedUpCamera;
+import org.openpnp.machine.reference.camera.TVM920Camera;
 import org.openpnp.machine.reference.camera.Webcams;
 import org.openpnp.machine.reference.driver.NullDriver;
 import org.openpnp.machine.reference.feeder.ReferenceAutoFeeder;
@@ -192,6 +193,7 @@ public class ReferenceMachine extends AbstractMachine {
         l.add(Webcams.class);
         l.add(OpenCvCamera.class);
         l.add(OnvifIPCamera.class);
+        l.add(TVM920Camera.class);
         l.add(ImageCamera.class);
         l.add(SimulatedUpCamera.class);
         return l;
