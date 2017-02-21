@@ -20,12 +20,16 @@ import org.openpnp.spi.Head;
 import org.openpnp.spi.PropertySheetHolder;
 import org.openpnp.spi.PropertySheetHolder.PropertySheet;
 import org.pmw.tinylog.Logger;
+import org.simpleframework.xml.Attribute;
 
 public class TVM920Driver implements ReferenceDriver {
-
-	TVM920Control hw;
 	
-	 private HashMap<Head, Location> headLocations = new HashMap<>();
+    @Attribute(required = false)
+    private double feedRateMmPerMinute = 5000;
+
+	private TVM920Control hw;
+	
+	private HashMap<Head, Location> headLocations = new HashMap<>();
 	
 	public TVM920Driver() {
 		try {
@@ -116,8 +120,14 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public void actuate(ReferenceActuator actuator, boolean on) throws Exception {
-		// TODO Auto-generated method stub
-
+		if (actuator.getName().charAt(0) == 'A')
+		{
+			int index = Character.getNumericValue(actuator.getName().charAt(1)) - 1;
+			if (on)
+				hw.PickOpen(index);
+			else
+				hw.PickClose(index);
+		}
 	}
 
 	@Override

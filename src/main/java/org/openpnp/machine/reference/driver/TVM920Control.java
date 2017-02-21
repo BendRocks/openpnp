@@ -302,7 +302,7 @@ public class TVM920Control {
 		Thread.currentThread().setPriority(Thread.NORM_PRIORITY + 1);
 		while (TerminateHeartbeatThread == false) {
 			try {
-				//GetStatus();
+				GetStatus();
 				Sleep(HeartbeatInterval);
 				++count;
 				
