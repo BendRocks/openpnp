@@ -34,9 +34,9 @@ public class TVM920Control {
 			}
 		}
 
-		// 
+		//
 		// check if both X & Y motion have finished
-		// 
+		//
 		static public boolean IsXYStopped() {
 			VerifyStatusGood();
 
@@ -48,12 +48,12 @@ public class TVM920Control {
 		}
 
 		// check if all z motion has finished
-		// 
+		//
 		static public boolean IsZStopped() {
 			VerifyStatusGood();
 
-			if ((LastStatusMessage[0x31] == 0) && // NOZ34 status
-					(LastStatusMessage[0x30] == 0)) // NOA12 status
+			if ((LastStatusMessage[0x31] == 0) && // Z34 status
+					(LastStatusMessage[0x30] == 0)) // Z12 status
 				return true;
 
 			return false;
@@ -76,7 +76,7 @@ public class TVM920Control {
 
 		//
 		// Verify all motion has stopped
-		// 
+		//
 		static public boolean IsAllMotionStopped() {
 			VerifyStatusGood();
 
@@ -121,8 +121,8 @@ public class TVM920Control {
 			VerifyStatusGood();
 
 			// Preserve the sign using arithmetic shift
-			int ticks = (LastStatusMessage[0x17] << 24) + (LastStatusMessage[0x16] << 16)
-					+ (LastStatusMessage[0x15] << 8);
+			int ticks = (LastStatusMessage[0x1F] << 24) + (LastStatusMessage[0x1E] << 16)
+					+ (LastStatusMessage[0x1D] << 8);
 			ticks = ticks >> 8;
 
 			return ticks;
@@ -130,13 +130,13 @@ public class TVM920Control {
 
 		//
 		/// Get the Z location in ticks
-		//		
+		//
 		public static int GetZ34Ticks() {
 			VerifyStatusGood();
 
 			// Preserve the sign using arithmetic shift
-			int ticks = (LastStatusMessage[0x1B] << 24) + (LastStatusMessage[0x1A] << 16)
-					+ (LastStatusMessage[0x19] << 8);
+			int ticks = (LastStatusMessage[0x23] << 24) + (LastStatusMessage[0x22] << 16)
+					+ (LastStatusMessage[0x21] << 8);
 			ticks = ticks >> 8;
 
 			return ticks;
@@ -163,8 +163,6 @@ public class TVM920Control {
 		}
 
 	} // End of static class to help with status
-	
-	
 
 	DatagramSocket Socket;
 	private Lock NetLock = new ReentrantLock();
@@ -191,7 +189,7 @@ public class TVM920Control {
 	}
 
 	//
-	// Sleep util used by all functions so we don't need the 
+	// Sleep util used by all functions so we don't need the
 	// Java try/catch around basic operations
 	//
 	private void Sleep(int mSeconds) {
@@ -203,10 +201,14 @@ public class TVM920Control {
 	}
 
 	//
-	// Send and receieve data. Note we do NOT want the main thread and the heartbeat thread to 
-	// be pre-empting each other inside here, so a lock is used to ensure the send/receive is 
-	// atomic. There's also a Sleep to ensure if a thread is pending on the lock, there will be
-	// at few mS at least between a message coming in and one going back out so that the 
+	// Send and receieve data. Note we do NOT want the main thread and the
+	// heartbeat thread to
+	// be pre-empting each other inside here, so a lock is used to ensure the
+	// send/receive is
+	// atomic. There's also a Sleep to ensure if a thread is pending on the
+	// lock, there will be
+	// at few mS at least between a message coming in and one going back out so
+	// that the
 	// TVM920 control board has time to respond
 	//
 	private byte[] SendReceiveUDP(byte[] data) {
@@ -233,82 +235,88 @@ public class TVM920Control {
 	//
 	private void SendUDP(byte[] data) {
 		try {
-			DatagramPacket packet = new DatagramPacket(data, data.length, InetAddress.getByName("192.168.0.8"), 8701);
-			Socket.send(packet);
+			DatagramPacket txPacket = new DatagramPacket(data, data.length, InetAddress.getByName("192.168.0.8"), 8701);
+			Socket.send(txPacket);
 		} catch (Exception e) {
 			Logger.debug("TVM920: Send UDP exception: " + e.toString());
 		}
 	}
 
 	//
-	// Not for general use in this class. TODO: Some cleanup on return value when
-	// nothing has been received. Currently, a big empty array is returned which 
-	// will appear as a status with everything zero'd. This isn't ideal. 
+	// Not for general use in this class. TODO: Some cleanup on return value
+	// when
+	// nothing has been received. Currently, a big empty array is returned which
+	// will appear as a status with everything zero'd. This isn't ideal.
 	//
 	private byte[] ReceiveUDP() {
 		try {
 			byte[] buffer = new byte[1024];
-			DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+			DatagramPacket rxPacket = new DatagramPacket(buffer, buffer.length);
+			Socket.receive(rxPacket);
+			byte[] rxData = rxPacket.getData();
 
-			byte[] data = packet.getData();
-
-			if (packet.getData()[0] == 0) {
-				Status.UpdateStatusMessage((byte[]) data.clone());
+			if (rxData[0] == 0) {
+				Status.UpdateStatusMessage((byte[]) rxData.clone());
 			}
 
-			return packet.getData();
+			return rxData;
 		} catch (Exception e) {
 			Logger.debug("TVM920: Recv UDP exception: " + e.toString());
 
 		}
 
-		// Nothing was received. Return empty array
-		return new byte[512];
+		// Nothing was received. Return null
+		return null;
 	}
 
 	//
-	// Starts the heartbeat thread. 
+	// Starts the heartbeat thread.
 	//
 	public void StartHeartbeat() {
 		TerminateHeartbeatThread = false;
 		try {
-		    new Thread(){
-		    	public void run(){
-		    		Heartbeat();
-		    	}
-		    }.start();
+			new Thread() {
+				public void run() {
+					Heartbeat();
+				}
+			}.start();
 		} catch (Exception ex) {
 			Logger.debug("TVM920: Heartbeat failed to start. " + ex.toString());
 		}
 	}
 
 	//
-	// Stops the heartbeat thread. 
+	// Stops the heartbeat thread.
 	//
 	public void StopHeartbeat() {
 		TerminateHeartbeatThread = true;
 	}
 
 	//
-	// Started from above. Runs every 15 mS or so. While this thread is running, the 
-	// green button on the TVM920 will glow solid. When this thread is NOT running, 
+	// Started from above. Runs every 15 mS or so. While this thread is running,
+	// the
+	// green button on the TVM920 will glow solid. When this thread is NOT
+	// running,
 	// the green button will flash
 	//
 	public void Heartbeat() {
 		int count = 0;
-		// This thread probably eats 1-2 mS every HeartbeatInterval. It should run at
-		// an elevated priority. TODO: Study if HeartbeatInterval can be pushed to 50
+		// This thread probably eats 1-2 mS every HeartbeatInterval. It should
+		// run at
+		// an elevated priority. TODO: Study if HeartbeatInterval can be pushed
+		// to 50
 		// mS or so. From memory it seems like it could
 		Thread.currentThread().setPriority(Thread.NORM_PRIORITY + 1);
+
 		while (TerminateHeartbeatThread == false) {
 			try {
 				GetStatus();
 				Sleep(HeartbeatInterval);
 				++count;
-				
+
 				if (count % 200 == 0)
 					Logger.debug("TVM920: Heartbeat running.");
-				
+
 			} catch (Exception e) {
 				// Likely no connection. Wait a while and try again
 				Sleep(100);
@@ -320,7 +328,8 @@ public class TVM920Control {
 	}
 
 	//
-	// Asks for status, and also handles the processing of status. The roundtrip time on this is a mS 
+	// Asks for status, and also handles the processing of status. The roundtrip
+	// time on this is a mS
 	// or two under windows
 	//
 	void GetStatus() {
@@ -372,7 +381,7 @@ public class TVM920Control {
 
 	//
 	// Close valve to release pick
-	// 
+	//
 	public void PickClose(int pickNumber) {
 		if (pickNumber > 3)
 			throw new IllegalArgumentException("Bad pick index");
@@ -386,7 +395,7 @@ public class TVM920Control {
 		SendReceiveUDP(data);
 	}
 
-	// 
+	//
 	// closes all picks
 	//
 	public void PickCloseAll() {
@@ -399,7 +408,7 @@ public class TVM920Control {
 		SendReceiveUDP(data);
 	}
 
-	// 
+	//
 	// Retract all Z to 0. Useful before a move
 	//
 	void RetractZ() {
@@ -499,7 +508,7 @@ public class TVM920Control {
 
 	//
 	// Move XY relative to current location
-	// 
+	//
 	public void MoveXYRel(double x, double y, double speed) {
 		GetStatus();
 
@@ -510,21 +519,25 @@ public class TVM920Control {
 	}
 
 	//
-	// MOve XY absolute
+	// MOve XY absolute. If any value == NaN, then that axis won't be moved
 	//
 	void MoveXYAbs(double x, double y, double speed) {
 		if (IsHomed) {
-			if (x > MAX_X)
-				x = MAX_X;
+			if (Double.isNaN(x) == false) {
+				if (x > MAX_X)
+					x = MAX_X;
 
-			if (x < 0)
-				x = 0;
+				if (x < 0)
+					x = 0;
+			}
 
-			if (y > MAX_Y)
-				y = MAX_Y;
+			if (Double.isNaN(y) == false) {
+				if (y > MAX_Y)
+					y = MAX_Y;
 
-			if (y < 0)
-				y = 0;
+				if (y < 0)
+					y = 0;
+			}
 		}
 
 		// Query front panel lock button? Not sure if needed
@@ -537,10 +550,20 @@ public class TVM920Control {
 
 		byte[] moveCmd = new byte[36];
 		moveCmd[0] = 0x0D;
+		
+		int xInt = 0, yInt = 0;
 
-		moveCmd[2] = (byte) 0xC0;
-		int xInt = (int) Math.round(x * TicksPerMM_X);
-		int yInt = (int) Math.round(y * TicksPerMM_Y);
+		// Determine which axes to move
+		if (Double.isNaN(x) == false)
+		{
+			moveCmd[2] |= 0x80;
+			xInt = (int) Math.round(x * TicksPerMM_X);
+		}
+		if (Double.isNaN(y) == false)
+		{
+			moveCmd[2] |= 0x40;
+			yInt = (int) Math.round(y * TicksPerMM_Y);
+		}
 
 		moveCmd[0x1D] = (byte) (yInt >> 0);
 		moveCmd[0x1E] = (byte) (yInt >> 8);
@@ -563,14 +586,14 @@ public class TVM920Control {
 	}
 
 	//
-	// Disable safety lockout
+	// Disable safety lockout. This will enable movement commands.
 	//
 	void MotionEnable() {
 		SendReceiveUDP(new byte[] { 0xc, 0, 1, 0 });
 	}
 
 	//
-	// Enabled safety lockout
+	// Enabled safety lockout. After issuing this command, movement commands don't do anything. 
 	//
 	void MotionDisable() {
 		SendReceiveUDP(new byte[] { 0xc, 0, 0, 0 });
@@ -592,9 +615,9 @@ public class TVM920Control {
 		return Status.GetYTicks() / TicksPerMM_Y;
 	}
 
-
 	//
-	// Gets the position from the last status message and converts to MM
+	// Gets the position from the last status message and converts to MM. Note
+	// that a positive value means raises nozzle 1 and lowers nozzle 2.
 	//
 	public double GetZ12PosMM() {
 		GetStatus();
@@ -602,7 +625,8 @@ public class TVM920Control {
 	}
 
 	//
-	// Gets the position from the last status message and converts to MM
+	// Gets the position from the last status message and converts to MM. Note
+	// that a positive value lower nozzle 4 and raises nozzle 3
 	//
 	public double GetZ34PosMM() {
 		GetStatus();
@@ -629,7 +653,7 @@ public class TVM920Control {
 	}
 
 	//
-	// Turns on down light
+	// Turns on down light and turns off up light
 	//
 	public void DownLightOn(boolean turnOn) {
 		if (turnOn)
@@ -639,7 +663,7 @@ public class TVM920Control {
 	}
 
 	//
-	// Turns on up light
+	// Turns on up light and turns off down light
 	//
 	public void UpLightOn(boolean turnOn) {
 		if (turnOn)
@@ -649,8 +673,10 @@ public class TVM920Control {
 	}
 
 	//
-	// Find Y home. TODO: Not sure the endstop code is needed? The endstop seems to supress movement
-	// that would move you FURTHER onto the endstop, but readily allows movement that would move you
+	// Find Y home. TODO: Not sure the endstop code is needed? The endstop seems
+	// to supress movement
+	// that would move you FURTHER onto the endstop, but readily allows movement
+	// that would move you
 	// off of the endstop.
 	//
 	void FindYHome() {
@@ -681,7 +707,7 @@ public class TVM920Control {
 		// Verify we're on the stop
 		GetStatus();
 
-		// Walk off home
+		// Walk off home by lowering nozzle 1
 		while (Status.IsZ12Home() == true) {
 			MoveZRel(0, -5, 0.2);
 			Sleep(100);
@@ -695,7 +721,7 @@ public class TVM920Control {
 			GetStatus();
 		}
 
-		// Walk off home
+		// Walk off home buy lower nozzle 4 
 		while (Status.IsZ34Home() == true) {
 			MoveZRel(3, -5, 0.2);
 			Sleep(100);
@@ -725,20 +751,19 @@ public class TVM920Control {
 	}
 
 	public boolean checkEnabled() {
-		try{
+		try {
 			Status.VerifyStatusGood();
 			return true;
+		} catch (Exception ex) {
+
 		}
-		catch (Exception ex)
-		{
-			
-		}
-		
+
 		return false;
 	}
 
 	//
-	// Sets speeds for various operations. If we have not been homed, then speed is locked at 30%. TODO: These
+	// Sets speeds for various operations. If we have not been homed, then speed
+	// is locked at 30%. TODO: These
 	// tables need to be fleshed out for other speed settings
 	//
 	void SetSpeed(double speed) {

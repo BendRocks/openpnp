@@ -1,7 +1,9 @@
 package org.openpnp.machine.reference.driver;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import javax.swing.Action;
 import javax.swing.Icon;
@@ -14,9 +16,11 @@ import org.openpnp.machine.reference.ReferenceHead;
 import org.openpnp.machine.reference.ReferenceHeadMountable;
 import org.openpnp.machine.reference.ReferenceNozzle;
 import org.openpnp.machine.reference.ReferencePasteDispenser;
+import org.openpnp.machine.reference.driver.GcodeDriver.Axis;
 import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
 import org.openpnp.spi.Head;
+import org.openpnp.spi.HeadMountable;
 import org.openpnp.spi.PropertySheetHolder;
 import org.openpnp.spi.PropertySheetHolder.PropertySheet;
 import org.pmw.tinylog.Logger;
@@ -30,7 +34,7 @@ public class TVM920Driver implements ReferenceDriver {
 	private TVM920Control hw;
 	
 	private HashMap<Head, Location> headLocations = new HashMap<>();
-	
+		
 	public TVM920Driver() {
 		try {
 			hw = new TVM920Control();
@@ -65,10 +69,14 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public void home(ReferenceHead head) throws Exception {
+		
+		// Find home location
 		hw.FindHome();
+		
+		// Update home location. Pull this from hardware
 		setHeadLocation(head, getHeadLocation(head).derive(hw.GetXPosMM(), hw.GetYPosMM(), 0.0, 0.0));
 	}
-
+	
 	@Override
 	public void moveTo(ReferenceHeadMountable hm, Location location, double speed) throws Exception {
 		Logger.debug("moveTo({}, {}, {})", hm, location, speed);
@@ -84,19 +92,24 @@ public class TVM920Driver implements ReferenceDriver {
 
         // Get the current location of the Head that we'll move
         Location hl = getHeadLocation(hm.getHead());
+        
+        double x = location.getX();
+        double y = location.getY();
+        double z = location.getZ();
+        //double rotation = location.getRotation();
 
         //if (feedRateMmPerMinute > 0) {
         //    simulateMovement(hm, location, hl, speed);
         //}
         
-        hw.MoveXYAbs(location.getX(), location.getY(), speed);
+        hw.MoveXYAbs(x, y, speed);
 
         // Now that movement is complete, update the stored Location to the new
         // Location, unless the incoming Location specified an axis with a value
         // of NaN. NaN is interpreted to mean "Don't move this axis" so we don't
         // update the value, either.
         
-        hl = hl.derive(hw.GetXPosMM(), hw.GetYPosMM(), 0.0, 0.0);
+        hl = hl.derive(Double.isNaN(x) ? null : x, Double.isNaN(y) ? null : y, 0.0, 0.0);
 
         setHeadLocation(hm.getHead(), hl);
 	}
