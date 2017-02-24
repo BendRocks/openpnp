@@ -109,7 +109,7 @@ public class TVM920Driver implements ReferenceDriver {
         // of NaN. NaN is interpreted to mean "Don't move this axis" so we don't
         // update the value, either.
         
-        hl = hl.derive(Double.isNaN(x) ? null : x, Double.isNaN(y) ? null : y, 0.0, 0.0);
+        hl = hl.derive(Double.isNaN(x) ? null : hw.GetXPosMM(), Double.isNaN(y) ? null : hw.GetYPosMM(), 0.0, 0.0);
 
         setHeadLocation(hm.getHead(), hl);
 	}
