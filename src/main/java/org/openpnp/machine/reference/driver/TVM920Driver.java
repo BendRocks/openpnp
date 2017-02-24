@@ -1,6 +1,9 @@
 package org.openpnp.machine.reference.driver;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,13 +49,18 @@ public class TVM920Driver implements ReferenceDriver {
 		}
 	}
 	
+	private void Log(String s)
+	{
+		Logger.debug(LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) +" " + s);
+	}
+	
 	@Override
 	public void close() throws IOException {
 		hw.StopHeartbeat();
-
 	}	
 	
 	protected Location getHeadLocation(Head head) {
+		Log(String.format("getHeadLocation()", head));
         Location l = headLocations.get(head);
         if (l == null) {
             l = new Location(LengthUnit.Millimeters, 0, 0, 0, 0);
@@ -62,6 +70,7 @@ public class TVM920Driver implements ReferenceDriver {
     }
 	
 	protected void setHeadLocation(Head head, Location l) {
+		Log(String.format("setHeadLocation()", head, l));
         headLocations.put(head, l);
     }
 	
@@ -69,7 +78,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public void home(ReferenceHead head) throws Exception {
-		
+		Log(String.format("Home()", head));
 		// Find home location
 		hw.FindHome();
 		
@@ -79,7 +88,7 @@ public class TVM920Driver implements ReferenceDriver {
 	
 	@Override
 	public void moveTo(ReferenceHeadMountable hm, Location location, double speed) throws Exception {
-		Logger.debug("moveTo({}, {}, {})", hm, location, speed);
+		Log(String.format("moveTo()", hm, location, speed));
         checkEnabled();
 
         // Subtract the offsets from the incoming Location. This converts the
@@ -116,23 +125,25 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public Location getLocation(ReferenceHeadMountable hm) {
+		Log(String.format("getLocation()", hm));
 		return getHeadLocation(hm.getHead()).add(hm.getHeadOffsets());
 	}
 
 	@Override
 	public void pick(ReferenceNozzle nozzle) throws Exception {
-		//hw.PickOpen(nozzle.getID);
+		Log(String.format("pick()", nozzle));
 
 	}
 
 	@Override
 	public void place(ReferenceNozzle nozzle) throws Exception {
-		// TODO Auto-generated method stub
+		Log(String.format("place()", nozzle));
 
 	}
 
 	@Override
 	public void actuate(ReferenceActuator actuator, boolean on) throws Exception {
+		Log(String.format("actuate()", actuator, on));
 		if (actuator.getName().charAt(0) == 'A')
 		{
 			int index = Character.getNumericValue(actuator.getName().charAt(1)) - 1;
@@ -146,11 +157,12 @@ public class TVM920Driver implements ReferenceDriver {
 	@Override
 	public void actuate(ReferenceActuator actuator, double value) throws Exception {
 		// TODO Auto-generated method stub
-
+		Log("setEnabled()");
 	}
 
 	@Override
 	public void setEnabled(boolean enabled) throws Exception {
+		Log(String.format("actuate()", enabled));
 		if (enabled)
 		{
 			hw.StartHeartbeat();
