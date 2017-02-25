@@ -238,45 +238,7 @@ public class TVM920Driver implements ReferenceDriver {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
 
-		// Add 4 new nozzles with required TVM characteristics. Then we'll
-		// delete entries starting at 0 until we have the last 4 we created. 
-		// The system doesn't like deleting everything first for some reason
-		for (int i = 0; i < 28; i++) {
-			ReferenceAutoFeeder raf = new ReferenceAutoFeeder();
-			
-			raf.setName("RAF" + Integer.toString(i));
-			raf.set
-
-
-			// Ballpark the locations. This will be different on all machines
-			switch (i) {
-			case 0:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
-				break;
-
-			case 1:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
-				break;
-
-			case 2:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
-				break;
-
-			case 3:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
-				break;
-			}
-
-			try {
-				rh.addNozzle(rn);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-
-		while (rh.getNozzles().size() > 4)
-			rh.removeNozzle(rh.getNozzles().get(0));			
+				
 	}
 
 	@Override
