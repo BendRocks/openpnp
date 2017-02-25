@@ -43,6 +43,7 @@ import org.openpnp.model.AbstractModelObject;
  * @author Jason von Nieda <jason@vonnieda.org>
  */
 public class JBindings {
+		
     public static <SS, SV, TS extends JComponent, TV> WrappedBinding<SS, SV, TS, TV> bind(SS source,
             String sourcePropertyName, TS component, String targetPropertyName) {
         return new WrappedBinding<>(source, sourcePropertyName, component, targetPropertyName, null,
