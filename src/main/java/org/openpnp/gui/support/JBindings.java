@@ -135,7 +135,8 @@ public class JBindings {
             firePropertyChange("value", oldValue, this.value);
         }
     }
-
+    
+   
     private static class JComponentBackgroundUpdater extends AbstractBindingListener {
         private static Color errorColor = new Color(0xff, 0xdd, 0xdd);
         private JComponent component;
