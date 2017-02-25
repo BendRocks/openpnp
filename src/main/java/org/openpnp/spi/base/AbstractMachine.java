@@ -370,4 +370,14 @@ public abstract class AbstractMachine extends AbstractModelObject implements Mac
     public double getSpeed() {
         return speed;
     }
+    
+    @Override
+    public Object getProperty(String name) {
+        return properties.get(name);
+    }
+
+    @Override
+    public void setProperty(String name, Object value) {
+        properties.put(name, value);
+    }
 }
