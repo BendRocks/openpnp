@@ -86,6 +86,16 @@ public class TVM920Driver implements ReferenceDriver {
 		// Update home location. Pull this from hardware
 		setHeadLocation(head, getHeadLocation(head).derive(hw.GetXPosMM(), hw.GetYPosMM(), 0.0, 0.0));
 	}
+	
+	public void FeederOpen()
+	{
+		
+	}
+	
+	public void FeederClose()
+	{
+		
+	}
 
 	@Override
 	public void moveTo(ReferenceHeadMountable hm, Location location, double speed) throws Exception {
