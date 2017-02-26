@@ -22,11 +22,14 @@ import org.openpnp.machine.reference.ReferenceNozzle;
 import org.openpnp.machine.reference.ReferencePasteDispenser;
 import org.openpnp.machine.reference.driver.GcodeDriver.Axis;
 import org.openpnp.machine.reference.feeder.ReferenceAutoFeeder;
+import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder.Bank;
+import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder.Feeder;
 import org.openpnp.machine.reference.feeder.TVM920SlotFeeder;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
+import org.openpnp.model.Part;
 import org.openpnp.spi.Camera;
 import org.openpnp.spi.Head;
 import org.openpnp.spi.HeadMountable;
@@ -247,17 +250,67 @@ public class TVM920Driver implements ReferenceDriver {
 			ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 			ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
 
-			TVM920SlotFeeder frontFeeder = new TVM920SlotFeeder();
-			frontFeeder.setName("F");
-
-			Bank b = new Bank();
-			b.setName("BankFront");
-			frontFeeder.setBank(b);
+			// Make sure we have a part named null. The initialized slot will always point to this, 
+			// otherwise the SlotFeeder cannot be activated
+			Configuration cfg = Configuration.get();
+			Part nullPart = cfg.getPart("NULL");
 			
-			for (int i=0; i<28; i++)
+			if ( nullPart == null)
 			{
-				
+				nullPart = new Part("NULL");
+				nullPart.setName("NULL");
+				cfg.addPart(nullPart);
 			}
+					
+			// Create the built-in front and back feeders
+			TVM920SlotFeeder frontFeeders = new TVM920SlotFeeder();
+			frontFeeders.setName("F");
+			frontFeeders.setEnabled(true);
+			
+			TVM920SlotFeeder rearFeeders = new TVM920SlotFeeder();
+			rearFeeders.setName("R");
+			rearFeeders.setEnabled(true);
+			
+			// Remove all banks except one	
+			while (TVM920SlotFeeder.getBanks().size() > 1)
+			{
+				TVM920SlotFeeder.getBanks().remove(1);
+			}
+			
+			// Set the name of this bank to FRONT
+			TVM920SlotFeeder.getBanks().get(0).setName("FRONT");
+			
+			// Now add a second bank for the REAR
+			Bank b = new Bank();
+			b.setName("REAR");
+			TVM920SlotFeeder.getBanks().add(b);
+
+			frontFeeders.setBank(TVM920SlotFeeder.getBanks().get(0));
+			rearFeeders.setBank(TVM920SlotFeeder.getBanks().get(1));
+			
+			TVM920SlotFeeder.getBanks().get(0).getFeeders().clear();
+			TVM920SlotFeeder.getBanks().get(1).getFeeders().clear();
+			
+			for (int i=0; i<4; i++)
+			{
+				Feeder f = new Feeder();
+				Feeder r = new Feeder();
+				
+				f.setName("F"+Integer.toString(i));
+				f.setPart(nullPart);
+				// First feeder pick location is the origin for the bank. 
+				f.setOffsets(new Location(LengthUnit.Millimeters, i*18, 0, -12, 0));
+				TVM920SlotFeeder.getBanks().get(0).getFeeders().add(f);
+				
+				r.setName("R"+Integer.toString(i));
+				r.setPart(nullPart);
+				f.setOffsets(new Location(LengthUnit.Millimeters, -i*18, 0, -12, 0));
+				TVM920SlotFeeder.getBanks().get(1).getFeeders().add(r);
+			}
+			
+			rm.addFeeder(frontFeeders);
+			rm.addFeeder(rearFeeders);
+			
 			
 		} catch (Exception ex) {
 
