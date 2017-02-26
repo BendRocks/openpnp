@@ -11,6 +11,9 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.Icon;
 
+import org.openpnp.events.FeederSelectedEvent;
+import org.openpnp.gui.FeedersPanel;
+import org.openpnp.gui.MainFrame;
 import org.openpnp.gui.support.PropertySheetWizardAdapter;
 import org.openpnp.gui.support.Wizard;
 import org.openpnp.machine.reference.ReferenceActuator;
@@ -19,13 +22,14 @@ import org.openpnp.machine.reference.ReferenceHead;
 import org.openpnp.machine.reference.ReferenceHeadMountable;
 import org.openpnp.machine.reference.ReferenceMachine;
 import org.openpnp.machine.reference.ReferenceNozzle;
+import org.openpnp.machine.reference.ReferenceNozzleTip;
 import org.openpnp.machine.reference.ReferencePasteDispenser;
 import org.openpnp.machine.reference.driver.GcodeDriver.Axis;
 import org.openpnp.machine.reference.feeder.ReferenceAutoFeeder;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder.Bank;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder.Feeder;
-import org.openpnp.machine.reference.feeder.TVM920SlotFeeder;
+import org.openpnp.machine.reference.feeder.TVM920SlotAutoFeeder;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
@@ -245,73 +249,92 @@ public class TVM920Driver implements ReferenceDriver {
 			rh.removeNozzle(rh.getNozzles().get(0));
 	}
 
+	private void CreateTVM920NozzleTips() {
+		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
+		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
+
+		for (int i = 0; i < 4; i++) {
+			ReferenceNozzleTip nt = new ReferenceNozzleTip();
+
+			nt.setName("NT" + Integer.toString(i));
+
+			try {
+				rh.getNozzles().get(i).addNozzleTip(nt);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+
 	private void createTVM920Feeders() {
 		try {
 			ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 			ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
 
-			// Make sure we have a part named null. The initialized slot will always point to this, 
-			// otherwise the SlotFeeder cannot be activated
+			// Make sure we have a part named null. The initialized slot will
+			// always point to this.
 			Configuration cfg = Configuration.get();
 			Part nullPart = cfg.getPart("NULL");
-			
-			if ( nullPart == null)
-			{
+
+			if (nullPart == null) {
 				nullPart = new Part("NULL");
 				nullPart.setName("NULL");
 				cfg.addPart(nullPart);
 			}
-					
-			// Create the built-in front and back feeders
-			TVM920SlotFeeder frontFeeders = new TVM920SlotFeeder();
-			frontFeeders.setName("F");
-			frontFeeders.setEnabled(true);
-			
-			TVM920SlotFeeder rearFeeders = new TVM920SlotFeeder();
-			rearFeeders.setName("R");
-			rearFeeders.setEnabled(true);
-			
-			// Remove all banks except one	
-			while (TVM920SlotFeeder.getBanks().size() > 1)
-			{
-				TVM920SlotFeeder.getBanks().remove(1);
+
+			// Remove all banks except one
+			while (TVM920SlotAutoFeeder.getBanks().size() > 1) {
+				TVM920SlotAutoFeeder.getBanks().remove(1);
 			}
-			
-			// Set the name of this bank to FRONT
-			TVM920SlotFeeder.getBanks().get(0).setName("FRONT");
-			
+
+			// Set the name of the remaining bank to FRONT
+			TVM920SlotAutoFeeder.getBanks().get(0).setName("FRONT");
+
 			// Now add a second bank for the REAR
 			Bank b = new Bank();
 			b.setName("REAR");
-			TVM920SlotFeeder.getBanks().add(b);
+			TVM920SlotAutoFeeder.getBanks().add(b);
 
-			frontFeeders.setBank(TVM920SlotFeeder.getBanks().get(0));
-			rearFeeders.setBank(TVM920SlotFeeder.getBanks().get(1));
-			
-			TVM920SlotFeeder.getBanks().get(0).getFeeders().clear();
-			TVM920SlotFeeder.getBanks().get(1).getFeeders().clear();
-			
-			for (int i=0; i<4; i++)
-			{
+			// Clear both banks
+			TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().clear();
+			TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().clear();
+
+			for (int i = 0; i < 4; i++) {
+				// Create the built-in front feeders
+				TVM920SlotAutoFeeder frontFeeder = new TVM920SlotAutoFeeder();
+				frontFeeder.setPart(nullPart);
+				frontFeeder.setName("F" + Integer.toString(i));
+				frontFeeder.setEnabled(true);
+				frontFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(0));
+
 				Feeder f = new Feeder();
-				Feeder r = new Feeder();
-				
-				f.setName("F"+Integer.toString(i));
+				f.setName("FF" + Integer.toString(i));
 				f.setPart(nullPart);
-				// First feeder pick location is the origin for the bank. 
-				f.setOffsets(new Location(LengthUnit.Millimeters, i*18, 0, -12, 0));
-				TVM920SlotFeeder.getBanks().get(0).getFeeders().add(f);
-				
-				r.setName("R"+Integer.toString(i));
+				// First feeder pick location is the origin for the bank.
+				f.setOffsets(new Location(LengthUnit.Millimeters, i * 18, 0, -12, 0));
+				TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().add(f);
+				rm.addFeeder(frontFeeder);
+
+				// And the built-in rear feeders
+				TVM920SlotAutoFeeder rearFeeder = new TVM920SlotAutoFeeder();
+				rearFeeder.setPart(nullPart);
+				rearFeeder.setName("RF" + Integer.toString(i));
+				rearFeeder.setEnabled(true);
+				rearFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(1));
+
+				Feeder r = new Feeder();
+				r.setName("RR" + Integer.toString(i));
 				r.setPart(nullPart);
-				f.setOffsets(new Location(LengthUnit.Millimeters, -i*18, 0, -12, 0));
-				TVM920SlotFeeder.getBanks().get(1).getFeeders().add(r);
+				r.setOffsets(new Location(LengthUnit.Millimeters, -i * 18, 0, -12, 0));
+				TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().add(r);
+				rm.addFeeder(rearFeeder);
+
 			}
-			
-			rm.addFeeder(frontFeeders);
-			rm.addFeeder(rearFeeders);
-			
-			
+
+			// Configuration.get().getBus().post(new FeederSelectedEvent(null,
+			// null));
+
 		} catch (Exception ex) {
 
 		}
@@ -322,7 +345,21 @@ public class TVM920Driver implements ReferenceDriver {
 	public Wizard getConfigurationWizard() {
 		// TODO Auto-generated method stub
 		createTVM920Nozzles();
+		CreateTVM920NozzleTips();
 		createTVM920Feeders();
+
+		// refresh() was added to to FeedersPanel to attempt to make the table
+		// show the added feeders. However
+		// it doesn't work. When you add another feeder via green '+', then the
+		// programmatically added
+		// feeders will show up. Note refresh() and a custom
+		// FeederSelectedEvent(null, null) were both
+		// tried without success. Q: What needs to be done to make added feeders
+		// show up?
+
+		MainFrame.get().getFeedersTab().refresh();
+		// Configuration.get().getBus().post(new FeederSelectedEvent(null,
+		// null));
 
 		return null;
 	}

@@ -16,19 +16,19 @@ import org.pmw.tinylog.Logger;
 public class TVM920Control {
 
 	private static class Status {
-		static byte[] lastStatusMessage;
-		static LocalDateTime LastStatusTime = LocalDateTime.MIN;
+		static byte[] lastStatusMessage = new byte[127];
+		// static LocalDateTime LastStatusTime = LocalDateTime.MIN;
 
 		static String dumpString(byte[] data) {
 			StringBuilder sb = new StringBuilder(1024);
 			for (int i = 0; i < data.length; i++) {
-				
+
 				if ((i % 16) == 0)
-					sb.append(String.format("\n%02X  ", i/16));
-				
-				if ( (i % 8 == 0) && (i % 16 != 0) && (i != 0) )
-					sb.append("  ");	
-				
+					sb.append(String.format("\n%02X  ", i / 16));
+
+				if ((i % 8 == 0) && (i % 16 != 0) && (i != 0))
+					sb.append("  ");
+
 				sb.append(String.format("%02x", data[i]));
 				sb.append(' ');
 			}
@@ -39,7 +39,7 @@ public class TVM920Control {
 		static boolean arraysAreSame(byte[] array1, byte[] array2) {
 			if (array1 == null || array2 == null)
 				return true;
-			
+
 			if (array1.length != array2.length)
 				return false;
 
@@ -62,7 +62,7 @@ public class TVM920Control {
 			}
 
 			lastStatusMessage = newMsg;
-			LastStatusTime = LocalDateTime.now();
+			// LastStatusTime = LocalDateTime.now();
 		}
 
 		//
@@ -70,9 +70,11 @@ public class TVM920Control {
 		//
 		static void verifyStatusGood() {
 			/*
-			if (Duration.between(LastStatusTime, LocalDateTime.now()).toMillis() > 100) {
-				throw new IllegalStateException("Status message is stale. Operation cannot be determined.");
-			}*/
+			 * if (Duration.between(LastStatusTime,
+			 * LocalDateTime.now()).toMillis() > 100) { throw new
+			 * IllegalStateException("Status message is stale. Operation cannot be determined."
+			 * ); }
+			 */
 		}
 
 		//
@@ -81,7 +83,7 @@ public class TVM920Control {
 		static public boolean isXYStopped() {
 			verifyStatusGood();
 
-			if ((lastStatusMessage[0x33] == 0) &&   // X Status
+			if ((lastStatusMessage[0x33] == 0) && // X Status
 					(lastStatusMessage[0x32] == 0)) // Y Status
 				return true;
 
@@ -93,7 +95,7 @@ public class TVM920Control {
 		static public boolean isZStopped() {
 			verifyStatusGood();
 
-			if ((lastStatusMessage[0x31] == 0) &&   // Z34 status
+			if ((lastStatusMessage[0x31] == 0) && // Z34 status
 					(lastStatusMessage[0x30] == 0)) // Z12 status
 				return true;
 
@@ -133,11 +135,13 @@ public class TVM920Control {
 		public static int getXTicks() {
 			verifyStatusGood();
 
-			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is important as it converts the value to an unsigned int
-			int ticks = ( (lastStatusMessage[0x2b] & 0xFF) << 24) + ( (lastStatusMessage[0x2a] & 0xFF) << 16) + ( (lastStatusMessage[0x29] & 0xFF) << 8);
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to an unsigned int
+			int ticks = ((lastStatusMessage[0x2b] & 0xFF) << 24) + ((lastStatusMessage[0x2a] & 0xFF) << 16)
+					+ ((lastStatusMessage[0x29] & 0xFF) << 8);
 			ticks = ticks >> 8;
-					
-		    Logger.debug(String.format("GetXTicks() returned %d [%x]", ticks, ticks));
+
+			Logger.debug(String.format("GetXTicks() returned %d [%x]", ticks, ticks));
 
 			return ticks;
 		}
@@ -148,8 +152,10 @@ public class TVM920Control {
 		public static int getYTicks() {
 			verifyStatusGood();
 
-			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is important as it converts the value to an unsigned int
-			int ticks = ( (lastStatusMessage[0x27] & 0xFF) << 24) + ( (lastStatusMessage[0x26] & 0xFF) << 16) + ( (lastStatusMessage[0x25] & 0xFF) << 8);
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to an unsigned int
+			int ticks = ((lastStatusMessage[0x27] & 0xFF) << 24) + ((lastStatusMessage[0x26] & 0xFF) << 16)
+					+ ((lastStatusMessage[0x25] & 0xFF) << 8);
 			ticks = ticks >> 8;
 
 			return ticks;
@@ -161,8 +167,10 @@ public class TVM920Control {
 		public static int getZ01Ticks() {
 			verifyStatusGood();
 
-			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is important as it converts the value to an unsigned int
-			int ticks = ( (lastStatusMessage[0x1F] & 0xFF) << 24) + ( (lastStatusMessage[0x1E] & 0xFF) << 16) + ( (lastStatusMessage[0x1D] & 0xFF) << 8);
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to an unsigned int
+			int ticks = ((lastStatusMessage[0x1F] & 0xFF) << 24) + ((lastStatusMessage[0x1E] & 0xFF) << 16)
+					+ ((lastStatusMessage[0x1D] & 0xFF) << 8);
 			ticks = ticks >> 8;
 
 			return ticks;
@@ -174,8 +182,10 @@ public class TVM920Control {
 		public static int getZ23Ticks() {
 			verifyStatusGood();
 
-			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is important as it converts the value to a signed int
-			int ticks = ( (lastStatusMessage[0x23] & 0xFF) << 24) + ( (lastStatusMessage[0x22] & 0xFF) << 16) + ( (lastStatusMessage[0x21] & 0xFF) << 8);
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to a signed int
+			int ticks = ((lastStatusMessage[0x23] & 0xFF) << 24) + ((lastStatusMessage[0x22] & 0xFF) << 16)
+					+ ((lastStatusMessage[0x21] & 0xFF) << 8);
 			ticks = ticks >> 8;
 
 			return ticks;
@@ -207,17 +217,20 @@ public class TVM920Control {
 	private Lock NetLock = new ReentrantLock();
 	private volatile boolean TerminateHeartbeatThread;
 	private int HeartbeatInterval = 50;
-	boolean IsHomed = false;
+	private boolean IsHomed = false;
 
 	// These are measured values and will ultimately need a calibration
-	double TicksPerMM_X = 327.55;
-	double TicksPerMM_Y = 204.85;
-	double TicksPerMM_Z = 262.37;
+	private double TicksPerMM_X = 327.55;
+	private double TicksPerMM_Y = 204.85;
+	private double TicksPerMM_Z = 262.37;
 
 	// This is the max allowed. This applies AFTER we've been homed
-	double MAX_X = 470;
-	double MAX_Y = 449;
-	double MIN_Z = -17;
+	private double MAX_X = 470;
+	private double MAX_Y = 449;
+	private double MIN_Z = -17;
+
+	private boolean emulateHardware = true;
+	private double emulatedX, emulatedY;
 
 	//
 	// Constructor
@@ -225,29 +238,6 @@ public class TVM920Control {
 	public TVM920Control() throws Exception {
 		Socket = new DatagramSocket(8701);
 		Socket.setSoTimeout(100);
-
-		//Logger.debug(Status.dumpString(new byte[]{00, 01, 2, 3, 4, 5, 6, 7,
-		// 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34}));
-		
-		/*
-		byte[] LastStatusMessage = new byte[64];
-		
-		// Preserve the sign using arithmetic shift
-		LastStatusMessage[0x2b] = (byte)0xFF;
-		LastStatusMessage[0x2a] = (byte)0xff;
-		LastStatusMessage[0x29] = (byte)0xdc;
-		
-		
-		int ticks;
-		
-		ticks = (LastStatusMessage[0x2b] & 0xFF) << 24;
-		ticks += (LastStatusMessage[0x2a] & 0xFF) << 16;
-		ticks += (LastStatusMessage[0x29] & 0xFF)  << 8;
-				
-		//int ticks = ((int)LastStatusMessage[0x2b] << 24) + ((int)LastStatusMessage[0x2a] << 16) + ((int)LastStatusMessage[0x29] << 8);
-		ticks = ticks >> 8;
-		*/
-				
 	}
 
 	//
@@ -261,10 +251,9 @@ public class TVM920Control {
 
 		}
 	}
-	
-	private void log(String s)
-	{
-		Logger.debug(LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) +" " +s);
+
+	private void log(String s) {
+		Logger.debug(LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + " " + s);
 	}
 
 	//
@@ -316,11 +305,17 @@ public class TVM920Control {
 	// will appear as a status with everything zero'd. This isn't ideal.
 	//
 	private byte[] receiveUDP() {
+
+		if (emulateHardware) {
+			sleep(5);
+			return new byte[128];
+		}
+
 		try {
 			byte[] buffer = new byte[1024];
 			DatagramPacket rxPacket = new DatagramPacket(buffer, buffer.length);
 			Socket.receive(rxPacket);
-			//byte[] rxData = rxPacket.getData();
+			// byte[] rxData = rxPacket.getData();
 			byte[] rxData = Arrays.copyOf(rxPacket.getData(), rxPacket.getLength());
 
 			if (rxData[0] == 0) {
@@ -382,8 +377,14 @@ public class TVM920Control {
 				sleep(HeartbeatInterval);
 				++count;
 
-				if (count % 200 == 0)
+				if (count % 200 == 0) {
+					if (emulateHardware) {
+						log("=====================================");
+						log("=========EMULATED HARDWARE===========");
+						log("=====================================");
+					}
 					log("TVM920: Heartbeat running.");
+				}
 
 			} catch (Exception e) {
 				// Likely no connection. Wait a while and try again
@@ -584,6 +585,13 @@ public class TVM920Control {
 	void MoveXYAbs(double x, double y, double speed) {
 		log(String.format("TVM920: MoveXYAbs(%.3f, %.3f, %.3f)", x, y, speed));
 		
+		if (emulateHardware)
+		{
+			sleep(3);
+			emulatedX = x;
+			emulatedY = y;
+		}
+
 		if (IsHomed) {
 			if (Double.isNaN(x) == false) {
 				if (x > MAX_X)
@@ -664,10 +672,16 @@ public class TVM920Control {
 	// Gets the position from the last status message and converts to MM
 	//
 	public double GetXPosMM() {
+		if (emulateHardware)
+		{
+			sleep(3);
+			return emulatedX;
+		}
+		
 		GetStatus();
 		double d = Status.getXTicks() / TicksPerMM_X;
 		log(String.format("TVM920: GetXPosMM() returned %.3f", d));
-		
+
 		return d;
 	}
 
@@ -675,10 +689,16 @@ public class TVM920Control {
 	// Gets the position from the last status message and converts to MM
 	//
 	public double GetYPosMM() {
+		if (emulateHardware)
+		{
+			sleep(3);
+			return emulatedY;
+		}
+		
 		GetStatus();
 		double d = Status.getYTicks() / TicksPerMM_Y;
 		log(String.format("TVM920: GetYPosMM() returned %.3f", d));
-		
+
 		return d;
 	}
 
@@ -691,14 +711,14 @@ public class TVM920Control {
 			throw new IllegalArgumentException("Head must be 0..3 inclusive");
 
 		GetStatus();
-		
+
 		double d;
 
 		if (head == 0 || head == 1)
 			d = Status.getZ01Ticks() / TicksPerMM_Z * (head == 1 ? -1.0 : 1.0);
 		else
 			d = Status.getZ23Ticks() / TicksPerMM_Z * (head == 3 ? -1.0 : 1.0);
-		
+
 		log(String.format("TVM920: GetZPosMM() returned %.3f", d));
 		return d;
 	}
@@ -708,7 +728,7 @@ public class TVM920Control {
 	//
 	public void SetXYPosMM(double xPosMM, double yPosMM) {
 		log(String.format("TVM920: SetXYPosMM(%.3f, %.3f)", xPosMM, yPosMM));
-		
+
 		int xInt = (int) Math.round(xPosMM * TicksPerMM_X);
 		int yInt = (int) Math.round(yPosMM * TicksPerMM_Y);
 		sendReceiveUDP(new byte[] { 8, 0, (byte) 0xC0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -753,7 +773,7 @@ public class TVM920Control {
 	//
 	void FindYHome() {
 		log(String.format("TVM920: FindYHome()"));
-		
+
 		EndStopEnableAll(true);
 
 		MoveXYRel(0, 1000, 0.2);
@@ -767,7 +787,7 @@ public class TVM920Control {
 
 	void FindXHome() {
 		log(String.format("TVM920: FindXHome()"));
-		
+
 		EndStopEnableAll(true);
 
 		MoveXYRel(1000, 0, 0.2);
@@ -781,7 +801,7 @@ public class TVM920Control {
 
 	void FindZHome() {
 		log(String.format("TVM920: FindZHome()"));
-		
+
 		// Verify we're on the stop
 		GetStatus();
 
@@ -848,7 +868,7 @@ public class TVM920Control {
 	//
 	void SetSpeed(double speed) {
 		log(String.format("TVM920: SetSpeed(%.3f)", speed));
-		
+
 		if (speed < 0 || speed > 1.0)
 			throw new IllegalArgumentException("Speed must be between 0.0 and 1.0 inclusive");
 
@@ -929,7 +949,7 @@ public class TVM920Control {
 	//
 	public void Init() {
 		log(String.format("TVM920: Init()"));
-		
+
 		int sleepTime = 10;
 
 		try {

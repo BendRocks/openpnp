@@ -1,13 +1,16 @@
 package org.openpnp.machine.reference.feeder;
 
 import org.openpnp.ConfigurationListener;
+import org.openpnp.gui.support.Wizard;
 import org.openpnp.machine.reference.ReferenceMachine;
 import org.openpnp.machine.reference.driver.TVM920Driver;
+import org.openpnp.machine.reference.feeder.wizards.ReferenceSlotAutoFeederConfigurationWizard;
+import org.openpnp.machine.reference.feeder.wizards.TVM920SlotAutoFeederConfigurationWizard;
 import org.openpnp.model.Configuration;
 import org.openpnp.spi.Nozzle;
 import org.simpleframework.xml.core.Commit;
 
-public class TVM920SlotFeeder extends ReferenceSlotAutoFeeder {
+public class TVM920SlotAutoFeeder extends ReferenceSlotAutoFeeder {
 	
 	/*
 	 @Override
@@ -51,6 +54,11 @@ public class TVM920SlotFeeder extends ReferenceSlotAutoFeeder {
         ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
         TVM920Driver drv = (TVM920Driver)rm.getDriver();
         drv.FeederOpen();        
+    }
+    
+    @Override
+    public Wizard getConfigurationWizard() {
+        return new TVM920SlotAutoFeederConfigurationWizard(this);
     }
 
 }
