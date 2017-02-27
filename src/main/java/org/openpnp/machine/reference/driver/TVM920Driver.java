@@ -65,7 +65,7 @@ public class TVM920Driver implements ReferenceDriver {
 		}
 	}
 
-	private void Log(String s) {
+	private void log(String s) {
 		Logger.debug(LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + " " + s);
 	}
 
@@ -85,32 +85,34 @@ public class TVM920Driver implements ReferenceDriver {
 	}
 
 	protected void setHeadLocation(Head head, Location l) {
-		Log(String.format("setHeadLocation()", head, l));
+		log(String.format("setHeadLocation()", head, l));
 		headLocations.put(head, l);
 	}
 
 	@Override
 	public void home(ReferenceHead head) throws Exception {
-		Log(String.format("Home()", head));
+		log(String.format("Home()", head));
 		// Find home location
-		hw.FindHome();
+		hw.findHome();
 
 		// Update home location. Pull this from hardware
-		setHeadLocation(head, getHeadLocation(head).derive(hw.GetXPosMM(), hw.GetYPosMM(), 0.0, 0.0));
+		setHeadLocation(head, getHeadLocation(head).derive(hw.getXPosMM(), hw.getYPosMM(), 0.0, 0.0));
 	}
 
-	public void feederOpen() {
-		Log(String.format("feederOpen()"));
+	public void feederOpen(int feederNumber) {
+		log(String.format("feederOpen()"));
+		hw.feederOpen(feederNumber);
 	}
 
-	public void feederClose() {
-		Log(String.format("feederClose()"));
+	public void feedersCloseAll() {
+		log(String.format("feederClose()"));
+		hw.feedersCloseAll();
 	}
 	
 	@Override
 	public void moveTo(ReferenceHeadMountable hm, Location location, double speed) throws Exception {
 		
-		Log(String.format("moveTo(head:%s, Loc:%s, Speed:%.3f, Name:%s)", hm, location, speed, hm.getName()));
+		log(String.format("moveTo(HM:%s, Loc:%s, Speed:%.3f)", hm.getName(), location, speed));
 		checkEnabled();
 		
 		Instant stopwatch = Instant.now();
@@ -126,38 +128,29 @@ public class TVM920Driver implements ReferenceDriver {
 		// Get the current location of the Head that we'll move
 		Location hl = getHeadLocation(hm.getHead());
 		
-		// We expect a nozzle name such as N1..N4
-		int headIndex = -1;
+		int nozzleIndex = -1;
 		
+		// If a nozzle is involved, we need the head index
 		if (hm.getName().contains("NZ"))
 		{ 
-			headIndex = Character.getNumericValue(hm.getName().charAt(2));
+			nozzleIndex = Character.getNumericValue(hm.getName().charAt(2));
 		}
 		
 		double x = location.getX();
 		double y = location.getY();
 		double z = location.getZ();
 		double theta = location.getRotation();
-		// double rotation = location.getRotation();
 		
-		if (theta != 0)
-		{
-			theta = theta + 0.1;
-		}
-		// if (feedRateMmPerMinute > 0) {
-		// simulateMovement(hm, location, hl, speed);
-		// }
+		hw.moveXYThetaAbs(x, y, nozzleIndex, theta, speed);
 		
-		hw.moveXYThetaAbs(x, y, headIndex, theta, speed);
-		
-		Log("   MoveTo() complete. Elapsed: " + Duration.between(stopwatch, Instant.now()));
+		log("   MoveTo() complete. Elapsed: " + Duration.between(stopwatch, Instant.now()));
 
 		// Now that movement is complete, update the stored Location to the new
 		// Location, unless the incoming Location specified an axis with a value
 		// of NaN. NaN is interpreted to mean "Don't move this axis" so we don't
 		// update the value, either.
 
-		hl = hl.derive(Double.isNaN(x) ? null : hw.GetXPosMM(), Double.isNaN(y) ? null : hw.GetYPosMM(), 0.0, 0.0);
+		hl = hl.derive(Double.isNaN(x) ? null : hw.getXPosMM(), Double.isNaN(y) ? null : hw.getYPosMM(), 0.0, 0.0);
 
 		setHeadLocation(hm.getHead(), hl);
 	}
@@ -170,37 +163,42 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public void pick(ReferenceNozzle nozzle) throws Exception {
-		Log(String.format("pick()", nozzle));
+		log(String.format("pick()", nozzle));
 
+		int nozzleIndex = Character.getNumericValue(nozzle.getName().charAt(2));
+		hw.pickOpen(nozzleIndex);
 	}
 
 	@Override
 	public void place(ReferenceNozzle nozzle) throws Exception {
-		Log(String.format("place()", nozzle));
+		log(String.format("place()", nozzle));
 
+		int nozzleIndex = Character.getNumericValue(nozzle.getName().charAt(2));
+		hw.pickClose(nozzleIndex);
 	}
 
 	@Override
 	public void actuate(ReferenceActuator actuator, boolean on) throws Exception {
-		Log(String.format("actuate()", actuator, on));
-		if (actuator.getName().charAt(0) == 'A') {
-			int index = Character.getNumericValue(actuator.getName().charAt(1)) - 1;
-			if (on)
-				hw.PickOpen(index);
-			else
-				hw.PickClose(index);
+		if (actuator.getName().equals("UpCamLights"))
+		{
+				hw.upLightOn(on);
+		}
+		else if (actuator.getName().equals("DownCamLights"))
+		{
+				hw.upLightOn(on);
 		}
 	}
 
 	@Override
 	public void actuate(ReferenceActuator actuator, double value) throws Exception {
-		// TODO Auto-generated method stub
-		Log("setEnabled()");
+		String s = "TVM920Driverl:actuate() called. This shouldn't happen on the TVM920.";
+		log(s);
+		throw new IllegalArgumentException(s);
 	}
 
 	@Override
 	public void setEnabled(boolean enabled) throws Exception {
-		Log(String.format("actuate()", enabled));
+		log(String.format("actuate()", enabled));
 		if (enabled) {
 			hw.startHeartbeat();
 			Logger.debug("Heartbeat started");
@@ -220,9 +218,11 @@ public class TVM920Driver implements ReferenceDriver {
 	@Override
 	public void dispense(ReferencePasteDispenser dispenser, Location startLocation, Location endLocation,
 			long dispenseTimeMilliseconds) throws Exception {
-		// TODO Auto-generated method stub
-
+		String s = "TVM920Driverl:dispense() called. This shouldn't happen on the TVM920.";
+		log(s);
+		throw new IllegalArgumentException(s);
 	}
+	
 
 	private void createTVM920Nozzles() {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
@@ -230,7 +230,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 		try {
 			// Add 4 new nozzles with required TVM characteristics. 
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < 1; i++) {
 				ReferenceNozzle rn = new ReferenceNozzle();
 				ReferenceNozzleTip nt = new ReferenceNozzleTip();
 
@@ -261,52 +261,29 @@ public class TVM920Driver implements ReferenceDriver {
 				
 				rh.addNozzle(rn);
 				rn.addNozzleTip(nt);
+				rn.setNozzleTip(nt);
 			}
 			
 			while (rh.getNozzles().size() > 4)
 				rh.removeNozzle(rh.getNozzles().get(0));
 
 		} catch (Exception e) {
-			Log("Exception setting up tips and nozzles: " + e.toString());
+			log("Exception setting up tips and nozzles: " + e.toString());
 		}
-
-
 	}
 
-	/*
-	 * private void CreateTVM920NozzleTips() { ReferenceMachine rm =
-	 * (ReferenceMachine) Configuration.get().getMachine(); ReferenceHead rh =
-	 * (ReferenceHead) rm.getHeads().get(0);
-	 * 
-	 * for (int i = 0; i < 4; i++) { ReferenceNozzleTip nt = new
-	 * ReferenceNozzleTip();
-	 * 
-	 * nt.setName("NT" + Integer.toString(i));
-	 * 
-	 * try { rh.getNozzles().get(i).addNozzleTip(nt); } catch (Exception e) { //
-	 * TODO Auto-generated catch block e.printStackTrace(); } } }
-	 */
-
+	//
+	// Removes all feeders from machine and creates new front/rear feeders. This should rarely be called after initial config
+	//
 	private void createTVM920Feeders() {
 		try {
 			ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 			ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
 
-			// Make sure we have a part named null. The initialized slot will
-			// always point to this.
-
-			/*
-			 * Configuration cfg = Configuration.get(); Part nullPart =
-			 * cfg.getPart("NULL");
-			 * 
-			 * if (nullPart == null) { nullPart = new Part("NULL");
-			 * nullPart.setName("NULL"); cfg.addPart(nullPart); }
-			 */
-
 			// Remove all feeders from machine
 			while (rm.getFeeders().size() > 0) {
 				org.openpnp.spi.Feeder f = rm.getFeeders().get(0);
-				Log("Removed feeder");
+				log("Removed feeder");
 				rm.removeFeeder(f);
 			}
 
@@ -315,119 +292,88 @@ public class TVM920Driver implements ReferenceDriver {
 				TVM920SlotAutoFeeder.getBanks().remove(1);
 			}
 
-			// Set the name of the remaining bank to FRONT
 			TVM920SlotAutoFeeder.getBanks().get(0).setName("FRONT");
 
-			// Now add a second bank for the REAR
-			Bank b = new Bank();
-			b.setName("REAR");
-			// TVM920SlotAutoFeeder.getBanks().add(b);
-
-			// Clear both banks
 			TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().clear();
-			// TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().clear();
 
 			for (int i = 1; i < 2; i++) {
-				// Create the built-in front & rear feeders
 				TVM920SlotAutoFeeder frontFeeder = new TVM920SlotAutoFeeder();
-				frontFeeder.setName("F" + String.format("%02d", i));
+				frontFeeder.setName("F" + String.format("%02d", i)); 
 				frontFeeder.setEnabled(true);
 				frontFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(0));
 				frontFeeder.setLocation(new Location(LengthUnit.Millimeters, i * 18, 0, -12, 0));
 				rm.addFeeder(frontFeeder);
 
 				TVM920SlotAutoFeeder rearFeeder = new TVM920SlotAutoFeeder();
-				rearFeeder.setName("R" + String.format("%02d", i));
+				rearFeeder.setName("R" + String.format("%02d", i)); // Do not change this "R" prefix without looking at code in TVM920SlotAutoFeeder
 				rearFeeder.setEnabled(true);
 				rearFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(0));
 				rearFeeder.setLocation(new Location(LengthUnit.Millimeters, 440 + i * -18, 0, -12, 0));
 				rm.addFeeder(rearFeeder);
-
-				/*
-				 * Feeder f = new Feeder(); f.setName("FF" +
-				 * Integer.toString(i)); f.setPart(nullPart); // First feeder
-				 * pick location is the origin for the bank. f.setOffsets(new
-				 * Location(LengthUnit.Millimeters, i * 18, 0, -12, 0));
-				 * TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().add(f);
-				 * rm.addFeeder(frontFeeder);
-				 */
-
-				/*
-				 * // And the built-in rear feeders TVM920SlotAutoFeeder
-				 * rearFeeder = new TVM920SlotAutoFeeder(); //
-				 * rearFeeder.setPart(nullPart); rearFeeder.setName("RF" +
-				 * Integer.toString(i)); rearFeeder.setEnabled(true);
-				 * rearFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(1));
-				 * 
-				 * Feeder r = new Feeder(); r.setName("RR" +
-				 * Integer.toString(i)); // r.setPart(nullPart);
-				 * r.setOffsets(new Location(LengthUnit.Millimeters, -i * 18, 0,
-				 * -12, 0));
-				 * TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().add(r);
-				 * rm.addFeeder(rearFeeder);
-				 */
-
 			}
 
-			// Configuration.get().getBus().post(new FeederSelectedEvent(null,
-			// null));
-
 		} catch (Exception ex) {
-			Log("Exception in createTVM920Feeders() " + ex.getMessage());
+			log("Exception in createTVM920Feeders() " + ex.getMessage());
 		}
 
 	}
+	
+	private void createTVM920Actuators(){
+		try{
+			ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
+			
+			while (rm.getActuators().isEmpty() == false){
+				ReferenceActuator ra = (ReferenceActuator)rm.getActuators().get(0);
+				rm.getActuators().remove(ra);
+			}
+			
+			ReferenceActuator ra = new ReferenceActuator();
+			ra.setName("UpCamLights"); // Do not change this name without changing name in Actuator code above
+			rm.addActuator(ra);
+			
+			ra = new ReferenceActuator();
+			ra.setName("DownCamLights"); // Do not change this name without changing name in Actuator code above
+			rm.addActuator(ra);
+		}
+		catch (Exception ex)
+		{
+			log("Exception in createTVM920Actuators() " + ex.getMessage());
+		}
+	
+	}
+	
 
 	@Override
 	public Wizard getConfigurationWizard() {
-		// TODO Auto-generated method stub
 		createTVM920Nozzles();
-		//CreateTVM920NozzleTips();
 		createTVM920Feeders();
-
-		// refresh() was added to to FeedersPanel to attempt to make the table
-		// show the added feeders. However
-		// it doesn't work. When you add another feeder via green '+', then the
-		// programmatically added
-		// feeders will show up. Note refresh() and a custom
-		// FeederSelectedEvent(null, null) were both
-		// tried without success. Q: What needs to be done to make added feeders
-		// show up?
-
-		// MainFrame.get().getFeedersTab().refresh();
-		// Configuration.get().getBus().post(new FeederSelectedEvent(null,
-		// null));
+		createTVM920Actuators();
 
 		return null;
 	}
 
 	@Override
 	public String getPropertySheetHolderTitle() {
-		// TODO Auto-generated method stub
 		return getClass().getSimpleName();
 	}
 
 	@Override
 	public PropertySheetHolder[] getChildPropertySheetHolders() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public PropertySheet[] getPropertySheets() {
-		// TODO Auto-generated method stub
 		return new PropertySheet[] { new PropertySheetWizardAdapter(getConfigurationWizard()) };
 	}
 
 	@Override
 	public Action[] getPropertySheetHolderActions() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Icon getPropertySheetHolderIcon() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 

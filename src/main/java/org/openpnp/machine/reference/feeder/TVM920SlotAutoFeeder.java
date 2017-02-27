@@ -41,7 +41,15 @@ public class TVM920SlotAutoFeeder extends ReferenceSlotAutoFeeder {
         
         ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
         TVM920Driver drv = (TVM920Driver)rm.getDriver();
-        drv.feederOpen();
+        String feederName = getFeeder().getName().substring(1);
+        int feederIndex = Integer.valueOf(feederName);
+        
+        if (getFeeder().getName().charAt(0) == 'R')
+        {
+        	feederIndex += 32;
+        }
+        
+        drv.feederOpen(feederIndex);
         //super.feed(nozzle);
     }
 
@@ -53,7 +61,7 @@ public class TVM920SlotAutoFeeder extends ReferenceSlotAutoFeeder {
         //super.postPick(nozzle);
         ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
         TVM920Driver drv = (TVM920Driver)rm.getDriver();
-        drv.feederOpen();        
+        drv.feedersCloseAll();   
     }
     
     @Override
