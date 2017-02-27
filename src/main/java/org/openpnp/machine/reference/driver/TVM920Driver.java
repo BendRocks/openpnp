@@ -1,6 +1,7 @@
 package org.openpnp.machine.reference.driver;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -14,10 +15,12 @@ import javax.swing.Icon;
 import org.openpnp.events.FeederSelectedEvent;
 import org.openpnp.gui.FeedersPanel;
 import org.openpnp.gui.MainFrame;
+import org.openpnp.gui.support.MessageBoxes;
 import org.openpnp.gui.support.PropertySheetWizardAdapter;
 import org.openpnp.gui.support.Wizard;
 import org.openpnp.machine.reference.ReferenceActuator;
 import org.openpnp.machine.reference.ReferenceDriver;
+import org.openpnp.machine.reference.ReferenceFeeder;
 import org.openpnp.machine.reference.ReferenceHead;
 import org.openpnp.machine.reference.ReferenceHeadMountable;
 import org.openpnp.machine.reference.ReferenceMachine;
@@ -72,7 +75,7 @@ public class TVM920Driver implements ReferenceDriver {
 	}
 
 	protected Location getHeadLocation(Head head) {
-		Log(String.format("getHeadLocation()", head));
+		// Log(String.format("getHeadLocation()", head));
 		Location l = headLocations.get(head);
 		if (l == null) {
 			l = new Location(LengthUnit.Millimeters, 0, 0, 0, 0);
@@ -96,18 +99,21 @@ public class TVM920Driver implements ReferenceDriver {
 		setHeadLocation(head, getHeadLocation(head).derive(hw.GetXPosMM(), hw.GetYPosMM(), 0.0, 0.0));
 	}
 
-	public void FeederOpen() {
-
+	public void feederOpen() {
+		Log(String.format("feederOpen()"));
 	}
 
-	public void FeederClose() {
-
+	public void feederClose() {
+		Log(String.format("feederClose()"));
 	}
-
+	
 	@Override
 	public void moveTo(ReferenceHeadMountable hm, Location location, double speed) throws Exception {
-		Log(String.format("moveTo()", hm, location, speed));
+		
+		Log(String.format("moveTo(head:%s, Loc:%s, Speed:%.3f, Name:%s)", hm, location, speed, hm.getName()));
 		checkEnabled();
+		
+		Instant stopwatch = Instant.now();
 
 		// Subtract the offsets from the incoming Location. This converts the
 		// offset coordinates to driver / absolute coordinates.
@@ -119,17 +125,32 @@ public class TVM920Driver implements ReferenceDriver {
 
 		// Get the current location of the Head that we'll move
 		Location hl = getHeadLocation(hm.getHead());
-
+		
+		// We expect a nozzle name such as N1..N4
+		int headIndex = -1;
+		
+		if (hm.getName().contains("NZ"))
+		{ 
+			headIndex = Character.getNumericValue(hm.getName().charAt(2));
+		}
+		
 		double x = location.getX();
 		double y = location.getY();
 		double z = location.getZ();
+		double theta = location.getRotation();
 		// double rotation = location.getRotation();
-
+		
+		if (theta != 0)
+		{
+			theta = theta + 0.1;
+		}
 		// if (feedRateMmPerMinute > 0) {
 		// simulateMovement(hm, location, hl, speed);
 		// }
-
-		hw.MoveXYAbs(x, y, speed);
+		
+		hw.moveXYThetaAbs(x, y, headIndex, theta, speed);
+		
+		Log("   MoveTo() complete. Elapsed: " + Duration.between(stopwatch, Instant.now()));
 
 		// Now that movement is complete, update the stored Location to the new
 		// Location, unless the incoming Location specified an axis with a value
@@ -143,7 +164,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public Location getLocation(ReferenceHeadMountable hm) {
-		Log(String.format("getLocation()", hm));
+		// Log(String.format("getLocation()", hm));
 		return getHeadLocation(hm.getHead()).add(hm.getHeadOffsets());
 	}
 
@@ -207,65 +228,64 @@ public class TVM920Driver implements ReferenceDriver {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
 
-		// Add 4 new nozzles with required TVM characteristics. Then we'll
-		// delete entries starting at 0 until we have the last 4 we created.
-		// The system doesn't like deleting everything first for some reason
-		for (int i = 0; i < 4; i++) {
-			ReferenceNozzle rn = new ReferenceNozzle();
+		try {
+			// Add 4 new nozzles with required TVM characteristics. 
+			for (int i = 0; i < 4; i++) {
+				ReferenceNozzle rn = new ReferenceNozzle();
+				ReferenceNozzleTip nt = new ReferenceNozzleTip();
 
-			rn.setPickDwellMilliseconds(100);
-			rn.setPlaceDwellMilliseconds(100);
+				rn.setPickDwellMilliseconds(100);
+				rn.setPlaceDwellMilliseconds(100);
+				rn.setLimitRotation(false);
 
-			rn.setName("NOZ" + Integer.toString(i));
+				rn.setName("NZ" + Integer.toString(i));
+				nt.setName("NT" + Integer.toString(i));
 
-			// Ballpark the locations. This will be different on all machines
-			switch (i) {
-			case 0:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
-				break;
+				switch (i) {
+				case 0:
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
+					break;
 
-			case 1:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
-				break;
+				case 1:
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
+					break;
 
-			case 2:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
-				break;
+				case 2:
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
+					break;
 
-			case 3:
-				rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
-				break;
-			}
-
-			try {
+				case 3:
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
+					break;
+				}
+				
 				rh.addNozzle(rn);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				rn.addNozzleTip(nt);
 			}
+			
+			while (rh.getNozzles().size() > 4)
+				rh.removeNozzle(rh.getNozzles().get(0));
+
+		} catch (Exception e) {
+			Log("Exception setting up tips and nozzles: " + e.toString());
 		}
 
-		while (rh.getNozzles().size() > 4)
-			rh.removeNozzle(rh.getNozzles().get(0));
+
 	}
 
-	private void CreateTVM920NozzleTips() {
-		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
-		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
-
-		for (int i = 0; i < 4; i++) {
-			ReferenceNozzleTip nt = new ReferenceNozzleTip();
-
-			nt.setName("NT" + Integer.toString(i));
-
-			try {
-				rh.getNozzles().get(i).addNozzleTip(nt);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-	}
+	/*
+	 * private void CreateTVM920NozzleTips() { ReferenceMachine rm =
+	 * (ReferenceMachine) Configuration.get().getMachine(); ReferenceHead rh =
+	 * (ReferenceHead) rm.getHeads().get(0);
+	 * 
+	 * for (int i = 0; i < 4; i++) { ReferenceNozzleTip nt = new
+	 * ReferenceNozzleTip();
+	 * 
+	 * nt.setName("NT" + Integer.toString(i));
+	 * 
+	 * try { rh.getNozzles().get(i).addNozzleTip(nt); } catch (Exception e) { //
+	 * TODO Auto-generated catch block e.printStackTrace(); } } }
+	 */
 
 	private void createTVM920Feeders() {
 		try {
@@ -274,13 +294,20 @@ public class TVM920Driver implements ReferenceDriver {
 
 			// Make sure we have a part named null. The initialized slot will
 			// always point to this.
-			Configuration cfg = Configuration.get();
-			Part nullPart = cfg.getPart("NULL");
 
-			if (nullPart == null) {
-				nullPart = new Part("NULL");
-				nullPart.setName("NULL");
-				cfg.addPart(nullPart);
+			/*
+			 * Configuration cfg = Configuration.get(); Part nullPart =
+			 * cfg.getPart("NULL");
+			 * 
+			 * if (nullPart == null) { nullPart = new Part("NULL");
+			 * nullPart.setName("NULL"); cfg.addPart(nullPart); }
+			 */
+
+			// Remove all feeders from machine
+			while (rm.getFeeders().size() > 0) {
+				org.openpnp.spi.Feeder f = rm.getFeeders().get(0);
+				Log("Removed feeder");
+				rm.removeFeeder(f);
 			}
 
 			// Remove all banks except one
@@ -294,41 +321,51 @@ public class TVM920Driver implements ReferenceDriver {
 			// Now add a second bank for the REAR
 			Bank b = new Bank();
 			b.setName("REAR");
-			TVM920SlotAutoFeeder.getBanks().add(b);
+			// TVM920SlotAutoFeeder.getBanks().add(b);
 
 			// Clear both banks
 			TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().clear();
-			TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().clear();
+			// TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().clear();
 
-			for (int i = 0; i < 4; i++) {
-				// Create the built-in front feeders
+			for (int i = 1; i < 2; i++) {
+				// Create the built-in front & rear feeders
 				TVM920SlotAutoFeeder frontFeeder = new TVM920SlotAutoFeeder();
-				frontFeeder.setPart(nullPart);
-				frontFeeder.setName("F" + Integer.toString(i));
+				frontFeeder.setName("F" + String.format("%02d", i));
 				frontFeeder.setEnabled(true);
 				frontFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(0));
-
-				Feeder f = new Feeder();
-				f.setName("FF" + Integer.toString(i));
-				f.setPart(nullPart);
-				// First feeder pick location is the origin for the bank.
-				f.setOffsets(new Location(LengthUnit.Millimeters, i * 18, 0, -12, 0));
-				TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().add(f);
+				frontFeeder.setLocation(new Location(LengthUnit.Millimeters, i * 18, 0, -12, 0));
 				rm.addFeeder(frontFeeder);
 
-				// And the built-in rear feeders
 				TVM920SlotAutoFeeder rearFeeder = new TVM920SlotAutoFeeder();
-				rearFeeder.setPart(nullPart);
-				rearFeeder.setName("RF" + Integer.toString(i));
+				rearFeeder.setName("R" + String.format("%02d", i));
 				rearFeeder.setEnabled(true);
-				rearFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(1));
-
-				Feeder r = new Feeder();
-				r.setName("RR" + Integer.toString(i));
-				r.setPart(nullPart);
-				r.setOffsets(new Location(LengthUnit.Millimeters, -i * 18, 0, -12, 0));
-				TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().add(r);
+				rearFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(0));
+				rearFeeder.setLocation(new Location(LengthUnit.Millimeters, 440 + i * -18, 0, -12, 0));
 				rm.addFeeder(rearFeeder);
+
+				/*
+				 * Feeder f = new Feeder(); f.setName("FF" +
+				 * Integer.toString(i)); f.setPart(nullPart); // First feeder
+				 * pick location is the origin for the bank. f.setOffsets(new
+				 * Location(LengthUnit.Millimeters, i * 18, 0, -12, 0));
+				 * TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().add(f);
+				 * rm.addFeeder(frontFeeder);
+				 */
+
+				/*
+				 * // And the built-in rear feeders TVM920SlotAutoFeeder
+				 * rearFeeder = new TVM920SlotAutoFeeder(); //
+				 * rearFeeder.setPart(nullPart); rearFeeder.setName("RF" +
+				 * Integer.toString(i)); rearFeeder.setEnabled(true);
+				 * rearFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(1));
+				 * 
+				 * Feeder r = new Feeder(); r.setName("RR" +
+				 * Integer.toString(i)); // r.setPart(nullPart);
+				 * r.setOffsets(new Location(LengthUnit.Millimeters, -i * 18, 0,
+				 * -12, 0));
+				 * TVM920SlotAutoFeeder.getBanks().get(1).getFeeders().add(r);
+				 * rm.addFeeder(rearFeeder);
+				 */
 
 			}
 
@@ -336,7 +373,7 @@ public class TVM920Driver implements ReferenceDriver {
 			// null));
 
 		} catch (Exception ex) {
-
+			Log("Exception in createTVM920Feeders() " + ex.getMessage());
 		}
 
 	}
@@ -345,7 +382,7 @@ public class TVM920Driver implements ReferenceDriver {
 	public Wizard getConfigurationWizard() {
 		// TODO Auto-generated method stub
 		createTVM920Nozzles();
-		CreateTVM920NozzleTips();
+		//CreateTVM920NozzleTips();
 		createTVM920Feeders();
 
 		// refresh() was added to to FeedersPanel to attempt to make the table
@@ -357,7 +394,7 @@ public class TVM920Driver implements ReferenceDriver {
 		// tried without success. Q: What needs to be done to make added feeders
 		// show up?
 
-		MainFrame.get().getFeedersTab().refresh();
+		// MainFrame.get().getFeedersTab().refresh();
 		// Configuration.get().getBus().post(new FeederSelectedEvent(null,
 		// null));
 

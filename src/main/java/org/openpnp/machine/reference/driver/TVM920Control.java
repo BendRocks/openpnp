@@ -129,6 +129,62 @@ public class TVM920Control {
 			return false;
 		}
 
+		public static int GetTheta0Ticks() {
+			verifyStatusGood();
+
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to an unsigned int
+			int ticks = ((lastStatusMessage[0x7] & 0xFF) << 24) + ((lastStatusMessage[0x6] & 0xFF) << 16)
+					+ ((lastStatusMessage[0x5] & 0xFF) << 8);
+			ticks = ticks >> 8;
+
+			Logger.debug(String.format("GetTheta0Ticks() returned %d [%x]", ticks, ticks));
+
+			return ticks;
+		}
+
+		public static int GetTheta1Ticks() {
+			verifyStatusGood();
+
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to an unsigned int
+			int ticks = ((lastStatusMessage[0xb] & 0xFF) << 24) + ((lastStatusMessage[0xa] & 0xFF) << 16)
+					+ ((lastStatusMessage[0x9] & 0xFF) << 8);
+			ticks = ticks >> 8;
+
+			Logger.debug(String.format("GetTheta1Ticks() returned %d [%x]", ticks, ticks));
+
+			return ticks;
+		}
+
+		public static int GetTheta2Ticks() {
+			verifyStatusGood();
+
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to an unsigned int
+			int ticks = ((lastStatusMessage[0xf] & 0xFF) << 24) + ((lastStatusMessage[0xe] & 0xFF) << 16)
+					+ ((lastStatusMessage[0xd] & 0xFF) << 8);
+			ticks = ticks >> 8;
+
+			Logger.debug(String.format("GetTheta2Ticks() returned %d [%x]", ticks, ticks));
+
+			return ticks;
+		}
+
+		public static int GetTheta3Ticks() {
+			verifyStatusGood();
+
+			// Preserve the sign using arithmetic shift. Note the "& 0xFF" is
+			// important as it converts the value to an unsigned int
+			int ticks = ((lastStatusMessage[0x13] & 0xFF) << 24) + ((lastStatusMessage[0x12] & 0xFF) << 16)
+					+ ((lastStatusMessage[0x11] & 0xFF) << 8);
+			ticks = ticks >> 8;
+
+			Logger.debug(String.format("GetTheta3Ticks() returned %d [%x]", ticks, ticks));
+
+			return ticks;
+		}
+
 		//
 		/// Get the X location in ticks
 		//
@@ -223,6 +279,7 @@ public class TVM920Control {
 	private double TicksPerMM_X = 327.55;
 	private double TicksPerMM_Y = 204.85;
 	private double TicksPerMM_Z = 262.37;
+	private double TicksPerDegree = 17.77; // 0x1900 -> 6400 moves 360 degrees
 
 	// This is the max allowed. This applies AFTER we've been homed
 	private double MAX_X = 470;
@@ -238,6 +295,9 @@ public class TVM920Control {
 	public TVM920Control() throws Exception {
 		Socket = new DatagramSocket(8701);
 		Socket.setSoTimeout(100);
+		log("=====================================");
+		log("=========EMULATED HARDWARE===========");
+		log("=====================================");
 	}
 
 	//
@@ -570,23 +630,30 @@ public class TVM920Control {
 	//
 	// Move XY relative to current location
 	//
-	public void MoveXYRel(double x, double y, double speed) {
+	public void moveXYThetaRel(double x, double y, int head, double theta, double speed) {
 		GetStatus();
+
+		log(String.format("TVM920: moveXYThetaRel(%.3f, %.3f, %d, %.3f, %.3f)", x, y, head, theta, speed));
 
 		double absX = x + GetXPosMM();
 		double absY = y + GetYPosMM();
+		double absTheta = theta + GetThetaPosDeg(head);
 
-		MoveXYAbs(absX, absY, speed);
+		moveXYThetaAbs(absX, absY, head, absTheta, speed);
 	}
 
 	//
 	// MOve XY absolute. If any value == NaN, then that axis won't be moved
 	//
-	void MoveXYAbs(double x, double y, double speed) {
-		log(String.format("TVM920: MoveXYAbs(%.3f, %.3f, %.3f)", x, y, speed));
+	void moveXYThetaAbs(double x, double y, int head, double theta, double speed) {
+
+		// Verify we have something to do
+		if (Double.isNaN(x) && Double.isNaN(y) && Double.isNaN(theta))
+			return;
 		
-		if (emulateHardware)
-		{
+		log(String.format("TVM920: MoveXYAbs(%.3f, %.3f, %d, %.3f, %.3f)", x, y, head, theta, speed));
+
+		if (emulateHardware) {
 			sleep(3);
 			emulatedX = x;
 			emulatedY = y;
@@ -608,6 +675,14 @@ public class TVM920Control {
 				if (y < 0)
 					y = 0;
 			}
+
+			if (Double.isNaN(theta) == false) {
+				while (theta < 0)
+					theta += 360;
+
+				while (theta >= 360)
+					theta -= 360;
+			}
 		}
 
 		// Query front panel lock button? Not sure if needed
@@ -621,7 +696,7 @@ public class TVM920Control {
 		byte[] moveCmd = new byte[36];
 		moveCmd[0] = 0x0D;
 
-		int xInt = 0, yInt = 0;
+		int xInt = 0, yInt = 0, thetaInt = 0;
 
 		// Determine which axes to move
 		if (Double.isNaN(x) == false) {
@@ -632,6 +707,23 @@ public class TVM920Control {
 			moveCmd[2] |= 0x40;
 			yInt = (int) Math.round(y * TicksPerMM_Y);
 		}
+		if (Double.isNaN(theta) == false) {
+			thetaInt = (int) Math.round(theta * TicksPerDegree);
+			switch (head) {
+			case 0:
+				moveCmd[2] |= 1;
+				break;
+			case 1:
+				moveCmd[2] |= 2;
+				break;
+			case 2:
+				moveCmd[2] |= 4;
+				break;
+			case 3:
+				moveCmd[2] |= 8;
+				break;
+			}
+		}
 
 		moveCmd[0x1D] = (byte) (yInt >> 0);
 		moveCmd[0x1E] = (byte) (yInt >> 8);
@@ -640,6 +732,26 @@ public class TVM920Control {
 		moveCmd[0x21] = (byte) (xInt >> 0);
 		moveCmd[0x22] = (byte) (xInt >> 8);
 		moveCmd[0x23] = (byte) (xInt >> 16);
+
+		// Load Theta 0
+		moveCmd[0x5] = (byte) (thetaInt >> 0);
+		moveCmd[0x6] = (byte) (thetaInt >> 8);
+		moveCmd[0x7] = (byte) (thetaInt >> 16);
+
+		// Load Theta 1
+		moveCmd[0x9] = (byte) (thetaInt >> 0);
+		moveCmd[0xa] = (byte) (thetaInt >> 8);
+		moveCmd[0xb] = (byte) (thetaInt >> 16);
+
+		// Load Theta 2
+		moveCmd[0xe] = (byte) (thetaInt >> 0);
+		moveCmd[0xe] = (byte) (thetaInt >> 8);
+		moveCmd[0xf] = (byte) (thetaInt >> 16);
+
+		// Load Theta 3
+		moveCmd[0x11] = (byte) (thetaInt >> 0);
+		moveCmd[0x12] = (byte) (thetaInt >> 8);
+		moveCmd[0x13] = (byte) (thetaInt >> 16);
 
 		sendReceiveUDP(moveCmd);
 
@@ -668,16 +780,42 @@ public class TVM920Control {
 		sendReceiveUDP(new byte[] { 0xc, 0, 0, 0 });
 	}
 
+	public double GetThetaPosDeg(int head) {
+		if (emulateHardware) {
+			sleep(3);
+			return emulatedX;
+		}
+
+		GetStatus();
+		int thetaTicks = 0;
+
+		switch (head) {
+		case 0:
+			thetaTicks = Status.GetTheta0Ticks();
+			break;
+		case 1:
+			thetaTicks = Status.GetTheta1Ticks();
+			break;
+		case 2:
+			thetaTicks = Status.GetTheta2Ticks();
+			break;
+		case 3:
+			thetaTicks = Status.GetTheta3Ticks();
+			break;
+		}
+		
+		return thetaTicks / TicksPerDegree;
+	}
+
 	//
 	// Gets the position from the last status message and converts to MM
 	//
 	public double GetXPosMM() {
-		if (emulateHardware)
-		{
+		if (emulateHardware) {
 			sleep(3);
 			return emulatedX;
 		}
-		
+
 		GetStatus();
 		double d = Status.getXTicks() / TicksPerMM_X;
 		log(String.format("TVM920: GetXPosMM() returned %.3f", d));
@@ -689,12 +827,11 @@ public class TVM920Control {
 	// Gets the position from the last status message and converts to MM
 	//
 	public double GetYPosMM() {
-		if (emulateHardware)
-		{
+		if (emulateHardware) {
 			sleep(3);
 			return emulatedY;
 		}
-		
+
 		GetStatus();
 		double d = Status.getYTicks() / TicksPerMM_Y;
 		log(String.format("TVM920: GetYPosMM() returned %.3f", d));
@@ -776,11 +913,11 @@ public class TVM920Control {
 
 		EndStopEnableAll(true);
 
-		MoveXYRel(0, 1000, 0.2);
+		moveXYThetaRel(0, 1000, 0, Double.NaN, 0.2);
 
 		EndStopEnableY(false);
 
-		MoveXYRel(0, -5, 0.2);
+		moveXYThetaRel(0, -5, 0, Double.NaN, 0.2);
 
 		EndStopEnableAll(true);
 	}
@@ -790,11 +927,11 @@ public class TVM920Control {
 
 		EndStopEnableAll(true);
 
-		MoveXYRel(1000, 0, 0.2);
+		moveXYThetaRel(1000, 0,  0, Double.NaN, 0.2);
 
 		EndStopEnableX(false);
 
-		MoveXYRel(-5, 0, 0.2);
+		moveXYThetaRel(-5, 0, 0, Double.NaN,  0.2);
 
 		EndStopEnableAll(true);
 	}
