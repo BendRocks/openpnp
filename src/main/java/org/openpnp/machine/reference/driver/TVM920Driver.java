@@ -100,12 +100,12 @@ public class TVM920Driver implements ReferenceDriver {
 	}
 
 	public void feederOpen(int feederNumber) {
-		log(String.format("feederOpen()"));
+		log(String.format("feederOpen(%d)", feederNumber));
 		hw.feederOpen(feederNumber);
 	}
 
 	public void feedersCloseAll() {
-		log(String.format("feederClose()"));
+		log(String.format("feedersCloseAll()"));
 		hw.feedersCloseAll();
 	}
 	
@@ -157,7 +157,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public Location getLocation(ReferenceHeadMountable hm) {
-		// Log(String.format("getLocation()", hm));
+		//log(String.format("getLocation()", hm));
 		return getHeadLocation(hm.getHead()).add(hm.getHeadOffsets());
 	}
 
@@ -179,6 +179,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public void actuate(ReferenceActuator actuator, boolean on) throws Exception {
+		log( String.format("actuate(%s, %s)", actuator, on));
 		if (actuator.getName().equals("UpCamLights"))
 		{
 				hw.upLightOn(on);
@@ -191,14 +192,14 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public void actuate(ReferenceActuator actuator, double value) throws Exception {
-		String s = "TVM920Driverl:actuate() called. This shouldn't happen on the TVM920.";
+		String s = "TVM920Driverl:actuate(ReferenceActuator actuator, double value) called. This shouldn't happen on the TVM920.";
 		log(s);
 		throw new IllegalArgumentException(s);
 	}
 
 	@Override
 	public void setEnabled(boolean enabled) throws Exception {
-		log(String.format("actuate()", enabled));
+		log(String.format("setEnabled(%s)", enabled));
 		if (enabled) {
 			hw.startHeartbeat();
 			Logger.debug("Heartbeat started");
@@ -227,10 +228,12 @@ public class TVM920Driver implements ReferenceDriver {
 	private void createTVM920Nozzles() {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
+		
+		int numNozzles = 4;
 
 		try {
 			// Add 4 new nozzles with required TVM characteristics. 
-			for (int i = 0; i < 1; i++) {
+			for (int i = 0; i < numNozzles; i++) {
 				ReferenceNozzle rn = new ReferenceNozzle();
 				ReferenceNozzleTip nt = new ReferenceNozzleTip();
 
@@ -264,7 +267,7 @@ public class TVM920Driver implements ReferenceDriver {
 				rn.setNozzleTip(nt);
 			}
 			
-			while (rh.getNozzles().size() > 4)
+			while (rh.getNozzles().size() > numNozzles)
 				rh.removeNozzle(rh.getNozzles().get(0));
 
 		} catch (Exception e) {
@@ -311,6 +314,8 @@ public class TVM920Driver implements ReferenceDriver {
 				rearFeeder.setLocation(new Location(LengthUnit.Millimeters, 440 + i * -18, 0, -12, 0));
 				rm.addFeeder(rearFeeder);
 			}
+			
+			MainFrame.get().getFeedersTab().refresh();
 
 		} catch (Exception ex) {
 			log("Exception in createTVM920Feeders() " + ex.getMessage());
@@ -324,7 +329,7 @@ public class TVM920Driver implements ReferenceDriver {
 			
 			while (rm.getActuators().isEmpty() == false){
 				ReferenceActuator ra = (ReferenceActuator)rm.getActuators().get(0);
-				rm.getActuators().remove(ra);
+				rm.removeActuator(ra);
 			}
 			
 			ReferenceActuator ra = new ReferenceActuator();
