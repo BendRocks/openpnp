@@ -287,7 +287,7 @@ public class TVM920Control {
 	private double MAX_Y = 449;
 	private double MIN_Z = -17;
 
-	private boolean emulateHardware = true;
+	private boolean emulateHardware = false;
 	private double emulatedX, emulatedY, emulatedTheta;
 
 	//
