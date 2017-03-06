@@ -56,7 +56,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 	private HashMap<Head, Location> headLocations = new HashMap<>();
 
-	public TVM920Driver() {
+	public TVM920Driver() { 
 		try {
 			hw = new TVM920Control();
 			hw.Init();
@@ -85,13 +85,13 @@ public class TVM920Driver implements ReferenceDriver {
 	}
 
 	protected void setHeadLocation(Head head, Location l) {
-		log(String.format("setHeadLocation()", head, l));
+		log(String.format("setHeadLocation(%s, %s)", head, l));
 		headLocations.put(head, l);
 	}
 
 	@Override
 	public void home(ReferenceHead head) throws Exception {
-		log(String.format("Home()", head));
+		log(String.format("home(%s)", head));
 		// Find home location
 		hw.findHome();
 
@@ -141,6 +141,11 @@ public class TVM920Driver implements ReferenceDriver {
 		double z = location.getZ();
 		double theta = location.getRotation();
 		
+		// Do we need to do a z move?
+		if (Double.isNaN(z) == false && nozzleIndex != -1){
+			hw.moveZAbs(nozzleIndex, z, speed);
+		}
+		
 		hw.moveXYThetaAbs(x, y, nozzleIndex, theta, speed);
 		
 		log("   MoveTo() complete. Elapsed: " + Duration.between(stopwatch, Instant.now()));
@@ -149,8 +154,17 @@ public class TVM920Driver implements ReferenceDriver {
 		// Location, unless the incoming Location specified an axis with a value
 		// of NaN. NaN is interpreted to mean "Don't move this axis" so we don't
 		// update the value, either.
+		
+		// It seems that if we update the axis with the actual location (eg. 23.998mm versus 24mm)
+		// the a lot more moves will be requested later slowing things down considerably. So, 
+		// we update the location
 
-		hl = hl.derive(Double.isNaN(x) ? null : hw.getXPosMM(), Double.isNaN(y) ? null : hw.getYPosMM(), 0.0, 0.0);
+		hl = hl.derive( 
+				       Double.isNaN(x) ? null : hw.getXPosMM(), 
+				       Double.isNaN(y) ? null : hw.getYPosMM(), 
+				       Double.isNaN(z) || nozzleIndex == -1 ? null : hw.getZPosMM(nozzleIndex),
+				       Double.isNaN(theta) || nozzleIndex == -1 ? null : hw.getThetaPosDeg(nozzleIndex)
+				      );
 
 		setHeadLocation(hm.getHead(), hl);
 	}
@@ -186,7 +200,7 @@ public class TVM920Driver implements ReferenceDriver {
 		}
 		else if (actuator.getName().equals("DownCamLights"))
 		{
-				hw.upLightOn(on);
+				hw.downLightOn(on);
 		}
 	}
 

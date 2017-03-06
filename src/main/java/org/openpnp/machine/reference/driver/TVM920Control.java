@@ -11,13 +11,18 @@ import java.util.Arrays;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.openpnp.machine.reference.ReferenceMachine;
+import org.openpnp.model.Configuration;
+import org.openpnp.model.LengthUnit;
+import org.openpnp.model.Location;
+import org.openpnp.model.Part;
 import org.pmw.tinylog.Logger;
+import org.simpleframework.xml.Element;
 
 public class TVM920Control {
 
 	private static class Status {
 		static byte[] lastStatusMessage = new byte[127];
-		// static LocalDateTime LastStatusTime = LocalDateTime.MIN;
 
 		static private String dumpString(byte[] data) {
 			StringBuilder sb = new StringBuilder(1024);
@@ -58,7 +63,9 @@ public class TVM920Control {
 		static private void updateStatusMessage(byte[] newMsg) {
 
 			if (arraysAreSame(newMsg, lastStatusMessage) == false) {
-				Logger.debug("TVM920 Status Change: \n" + dumpString(newMsg));
+				Logger.debug("TVM920 Status Change: "
+						+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS")) + "\n"
+						+ dumpString(newMsg));
 			}
 
 			lastStatusMessage = newMsg;
@@ -269,6 +276,9 @@ public class TVM920Control {
 
 	} // End of static class to help with status
 
+	// Location of hardware fiducial pin
+	protected Location homingFiducialLocation = new Location(LengthUnit.Millimeters, 324, 112, 0, 0);
+
 	private DatagramSocket Socket;
 	private Lock NetLock = new ReentrantLock();
 	private volatile boolean TerminateHeartbeatThread;
@@ -284,9 +294,29 @@ public class TVM920Control {
 
 	// This is the max allowed. This applies AFTER we've been homed
 	private double MAX_X = 470;
-	private double MAX_Y = 449;
+	private double MAX_Y = 510;
 	private double MIN_Z = -17;
 
+	// This is the max speed allowed on any operation before we've homed the
+	// machine
+	private double homingSpeed = 0.4;
+
+	private final int HEADCOUNT = 4;
+
+	private boolean isZAxisMoving = false;
+	private boolean isXYThetaMoving = false;
+
+	private boolean[] isZHome = new boolean[HEADCOUNT];
+
+	private boolean isXStale, isYStale;
+	private boolean[] isZStale = new boolean[HEADCOUNT];
+	private boolean[] isThetaStale = new boolean[HEADCOUNT];
+
+	private double xPosCached, yPosCached;
+	private double[] zPosCached = new double[HEADCOUNT];
+	private double[] thetaPosCached = new double[HEADCOUNT];
+
+	// Vars used while emulating hardware
 	private boolean emulateHardware = false;
 	private double emulatedX, emulatedY, emulatedTheta;
 
@@ -296,9 +326,20 @@ public class TVM920Control {
 	public TVM920Control() throws Exception {
 		Socket = new DatagramSocket(8701);
 		Socket.setSoTimeout(100);
-		log("=====================================");
-		log("=========EMULATED HARDWARE===========");
-		log("=====================================");
+
+		isXStale = true;
+		isYStale = true;
+
+		for (int i = 0; i < 4; i++) {
+			isZStale[i] = true;
+			isThetaStale[i] = true;
+		}
+
+		if (emulateHardware) {
+			log("=====================================");
+			log("=========EMULATED HARDWARE===========");
+			log("=====================================");
+		}
 	}
 
 	//
@@ -548,20 +589,16 @@ public class TVM920Control {
 	//
 	// Retract all Z to 0. Useful before a move
 	//
-	private void retractZ() {
-		byte[] moveCmd = new byte[36];
-		moveCmd[0] = 0x0D;
-
-		moveCmd[2] = 0x30;
-
-		sendReceiveUDP(moveCmd);
-		GetStatus();
-
-		while (Status.isZStopped() == false) {
-			sleep(50);
-			GetStatus();
-		}
-	}
+	/*
+	 * private void retractZ() { byte[] moveCmd = new byte[36]; moveCmd[0] =
+	 * 0x0D;
+	 * 
+	 * moveCmd[2] = 0x30;
+	 * 
+	 * sendReceiveUDP(moveCmd); GetStatus();
+	 * 
+	 * while (Status.isZStopped() == false) { sleep(50); GetStatus(); } }
+	 */
 
 	//
 	// Move Z relative to current location
@@ -578,6 +615,18 @@ public class TVM920Control {
 	//
 	public void moveZAbs(int head, double z, double speed) {
 		log(String.format("TVM920: MoveZAbs(%d, %.3f, %.3f)", head, z, speed));
+
+		if (Double.isNaN(z))
+			return;
+
+		if (head < 0 || head > 3) {
+			throw new IllegalArgumentException("Head must be 0..3 inclusive");
+		}
+
+		if (z == 0 && isZHome[head])
+			return;
+
+		isZAxisMoving = true;
 
 		byte[] moveCmd = new byte[36];
 		moveCmd[0] = 0x0D;
@@ -598,8 +647,8 @@ public class TVM920Control {
 			moveCmd[2] = 0x10;
 		else if (head == 2 || head == 3)
 			moveCmd[2] = 0x20;
-		else
-			throw new IllegalArgumentException("Head must be 0..3 inclusive");
+
+		isZStale[head] = true;
 
 		// Compute move
 		int zInt = (int) Math.round(z * TicksPerMM_Z);
@@ -632,7 +681,13 @@ public class TVM920Control {
 			GetStatus();
 		}
 
+		isZAxisMoving = false;
 		motionDisable();
+
+		if (z == 0)
+			isZHome[head] = true;
+		else
+			isZHome[head] = false;
 	}
 
 	//
@@ -658,7 +713,7 @@ public class TVM920Control {
 		if (Double.isNaN(x) && Double.isNaN(y) && Double.isNaN(theta))
 			return;
 
-		log(String.format("TVM920: MoveXYAbs(%.3f, %.3f, %d, %.3f, %.3f)", x, y, head, theta, speed));
+		log(String.format("TVM920: moveXYThetaAbs(%.3f, %.3f, %d, %.3f, %.3f)", x, y, head, theta, speed));
 
 		if (emulateHardware) {
 			sleep(3);
@@ -667,7 +722,7 @@ public class TVM920Control {
 			emulatedTheta = theta;
 		}
 
-		// Keep it on the table...
+		// Clip values to table size.
 		if (IsHomed) {
 			if (Double.isNaN(x) == false) {
 				if (x > MAX_X)
@@ -686,9 +741,12 @@ public class TVM920Control {
 			}
 
 			if (Double.isNaN(theta) == false) {
-				// If theta is specifed, the head needs to make sense
-				if (head < 0 || head > 3)
-					throw new IllegalArgumentException("TVM920Control:MoveXYThetaAbs Bad head index");
+				// If theta is specifed, the head needs to make sense. Note that
+				// -1 specifies "no head" which
+				// is valid
+				if (head < -1 || head > 3)
+					throw new IllegalArgumentException(
+							"TVM920Control:MoveXYThetaAbs Bad head index: " + Integer.toString(head));
 
 				while (theta < 0)
 					theta += 360;
@@ -706,7 +764,7 @@ public class TVM920Control {
 		setSpeed(speed);
 
 		motionEnable();
-		retractZ();
+		isXYThetaMoving = true;
 
 		byte[] moveCmd = new byte[36];
 		moveCmd[0] = 0x0D;
@@ -715,14 +773,17 @@ public class TVM920Control {
 
 		// Determine which axes to move
 		if (Double.isNaN(x) == false) {
+			isXStale = true;
 			moveCmd[2] |= 0x80;
 			xInt = (int) Math.round(x * TicksPerMM_X);
 		}
 		if (Double.isNaN(y) == false) {
+			isYStale = true;
 			moveCmd[2] |= 0x40;
 			yInt = (int) Math.round(y * TicksPerMM_Y);
 		}
-		if (Double.isNaN(theta) == false) {
+		if (Double.isNaN(theta) == false && head != -1) {
+			isThetaStale[head] = true;
 			thetaInt = (int) Math.round(theta * TicksPerDegree);
 			switch (head) {
 			case 0:
@@ -783,8 +844,13 @@ public class TVM920Control {
 		while (Status.isXYStopped() == false) {
 			sleep(10);
 			GetStatus();
+
+			// Provide live updates to the Machine as the move progresses.
+			// ((ReferenceMachine) Configuration.get().getMachine())
+			// .fireMachineHeadActivity(hm.getHead());
 		}
 
+		isXYThetaMoving = false;
 		motionDisable();
 	}
 
@@ -803,66 +869,54 @@ public class TVM920Control {
 		sendReceiveUDP(new byte[] { 0xc, 0, 0, 0 });
 	}
 
-	public double getThetaPosDeg(int head) {
-		if (emulateHardware) {
-			sleep(3);
-			return emulatedTheta;
-		}
-
-		if (head < 0 || head > 3)
-			throw new IllegalArgumentException("TVM920Control:getThetaPosDeg() Bad head index");
-
-		GetStatus();
-		int thetaTicks = 0;
-
-		switch (head) {
-		case 0:
-			thetaTicks = Status.GetTheta0Ticks();
-			break;
-		case 1:
-			thetaTicks = Status.GetTheta1Ticks();
-			break;
-		case 2:
-			thetaTicks = Status.GetTheta2Ticks();
-			break;
-		case 3:
-			thetaTicks = Status.GetTheta3Ticks();
-			break;
-		}
-
-		return thetaTicks / TicksPerDegree;
-	}
-
 	//
 	// Gets the position from the last status message and converts to MM
 	//
 	public double getXPosMM() {
-		if (emulateHardware) {
-			sleep(3);
-			return emulatedX;
+		double result = Double.MAX_VALUE;
+
+		if (isXStale == false && isXYThetaMoving == false) {
+			result = xPosCached;
+		} else {
+			if (emulateHardware) {
+				sleep(3);
+				result = emulatedX;
+			}
+
+			GetStatus();
+			result = Status.getXTicks() / TicksPerMM_X;
+			xPosCached = result;
+			
+			isXStale = isXYThetaMoving;
 		}
 
-		GetStatus();
-		double d = Status.getXTicks() / TicksPerMM_X;
-		log(String.format("TVM920: GetXPosMM() returned %.3f", d));
-
-		return d;
+		log(String.format("TVM920: GetXPosMM() returned %.3f", result));
+		return result;
 	}
 
 	//
 	// Gets the position from the last status message and converts to MM
 	//
 	public double getYPosMM() {
-		if (emulateHardware) {
-			sleep(3);
-			return emulatedY;
+		double result = Double.MAX_VALUE;
+
+		if (isYStale == false && isXYThetaMoving == false) {
+			result = yPosCached;
+		} else {
+			if (emulateHardware) {
+				sleep(3);
+				result = emulatedX;
+			}
+
+			GetStatus();
+			result = Status.getYTicks() / TicksPerMM_Y;
+			yPosCached = result;
+			
+			isYStale = isXYThetaMoving;
 		}
 
-		GetStatus();
-		double d = Status.getYTicks() / TicksPerMM_Y;
-		log(String.format("TVM920: GetYPosMM() returned %.3f", d));
-
-		return d;
+		log(String.format("TVM920: GetYPosMM() returned %.3f", result));
+		return result;
 	}
 
 	//
@@ -873,17 +927,54 @@ public class TVM920Control {
 		if (head < 0 || head > 3)
 			throw new IllegalArgumentException("TVM920Control:getZPosMM() Bad head index");
 
+		if (isZStale[head] == false && isZAxisMoving == false) {
+			return zPosCached[head];
+		}
+
+		GetStatus();
+		if (head == 0 || head == 1)
+			zPosCached[head] = Status.getZ01Ticks() / TicksPerMM_Z * (head == 1 ? -1.0 : 1.0);
+		else
+			zPosCached[head] = Status.getZ23Ticks() / TicksPerMM_Z * (head == 3 ? -1.0 : 1.0);
+
+		log(String.format("TVM920: GetZPosMM() returned %.3f", zPosCached[head]));
+		isZStale[head] = false;
+		return zPosCached[head];
+	}
+
+	public double getThetaPosDeg(int head) {
+		if (head < 0 || head > 3)
+			throw new IllegalArgumentException("TVM920Control:getThetaPosDeg() Bad head index");
+
+		if (isThetaStale[head] == false) {
+			return thetaPosCached[head];
+		}
+
+		if (emulateHardware) {
+			sleep(3);
+			return emulatedTheta;
+		}
+
 		GetStatus();
 
-		double d;
+		switch (head) {
+		case 0:
+			thetaPosCached[head] = Status.GetTheta0Ticks() / TicksPerDegree;
+			break;
+		case 1:
+			thetaPosCached[head] = Status.GetTheta1Ticks() / TicksPerDegree;
+			break;
+		case 2:
+			thetaPosCached[head] = Status.GetTheta2Ticks() / TicksPerDegree;
+			break;
+		case 3:
+			thetaPosCached[head] = Status.GetTheta3Ticks() / TicksPerDegree;
+			break;
+		}
 
-		if (head == 0 || head == 1)
-			d = Status.getZ01Ticks() / TicksPerMM_Z * (head == 1 ? -1.0 : 1.0);
-		else
-			d = Status.getZ23Ticks() / TicksPerMM_Z * (head == 3 ? -1.0 : 1.0);
+		isThetaStale[head] = false;
 
-		log(String.format("TVM920: GetZPosMM() returned %.3f", d));
-		return d;
+		return thetaPosCached[head];
 	}
 
 	//
@@ -891,6 +982,9 @@ public class TVM920Control {
 	//
 	private void setXYPosMM(double xPosMM, double yPosMM) {
 		log(String.format("TVM920: SetXYPosMM(%.3f, %.3f)", xPosMM, yPosMM));
+
+		isXStale = true;
+		isYStale = true;
 
 		int xInt = (int) Math.round(xPosMM * TicksPerMM_X);
 		int yInt = (int) Math.round(yPosMM * TicksPerMM_Y);
@@ -903,6 +997,11 @@ public class TVM920Control {
 	// Sets all Z positions to 0
 	//
 	private void setZ1234PosZero() {
+		for (int i = 0; i < HEADCOUNT; i++) {
+			zPosCached[i] = 0;
+			isZStale[i] = false;
+		}
+
 		sendReceiveUDP(new byte[] { 8, 0, 0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0 });
 	}
@@ -914,7 +1013,7 @@ public class TVM920Control {
 		if (turnOn)
 			sendReceiveUDP(new byte[] { 0x16, 0x00, 0x00, 0x00, (byte) 0x80, 0x00, 0x00, 0x00 });
 		else
-			sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x80, 0x00, 0x00, 0x00 });
+			sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x00, 0x01, 0x00, 0x00 });
 	}
 
 	//
@@ -922,9 +1021,9 @@ public class TVM920Control {
 	//
 	public void upLightOn(boolean turnOn) {
 		if (turnOn)
-			sendReceiveUDP(new byte[] { 0x16, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00 });
+			sendReceiveUDP(new byte[] { 0x16, 0x00, 0x00, 0x00, (byte) 0x00, 0x01, 0x00, 0x00 });
 		else
-			sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00 });
+			sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x80, 0x00, 0x00, 0x00 });
 	}
 
 	//
@@ -940,11 +1039,13 @@ public class TVM920Control {
 
 		EndStopEnableAll(true);
 
-		moveXYThetaRel(1000, 0, 0, Double.NaN, 0.2);
+		moveXYThetaRel(1000, 0, 0, Double.NaN, homingSpeed);
 
 		EndStopEnableX(false);
 
-		moveXYThetaRel(-5, 0, 0, Double.NaN, 0.2);
+		// Back off 5 mm from home. If this changes, the abs setting in
+		// findXYZHome() needs to change
+		moveXYThetaRel(-5, 0, 0, Double.NaN, homingSpeed);
 
 		EndStopEnableAll(true);
 	}
@@ -954,11 +1055,13 @@ public class TVM920Control {
 
 		EndStopEnableAll(true);
 
-		moveXYThetaRel(0, 1000, 0, Double.NaN, 0.2);
+		moveXYThetaRel(0, 1000, 0, Double.NaN, homingSpeed);
 
 		EndStopEnableY(false);
 
-		moveXYThetaRel(0, -5, 0, Double.NaN, 0.2);
+		// Back off 5 mm from home. If this changes, the abs setting in
+		// findXYZHome() needs to change
+		moveXYThetaRel(0, -5, 0, Double.NaN, homingSpeed);
 
 		EndStopEnableAll(true);
 	}
@@ -971,28 +1074,28 @@ public class TVM920Control {
 
 		// Walk off home by lowering nozzle 1 one mm at a time
 		while (Status.isZ01Home() == true) {
-			moveZRel(0, -1, 0.2);
+			moveZRel(0, -1, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
 
 		// Walk back on home 0.2 mm at a time
 		while (Status.isZ01Home() == false) {
-			moveZRel(0, 0.1, 0.2);
+			moveZRel(0, 0.1, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
 
 		// Walk off home buy lowering nozzle 4
 		while (Status.isZ23Home() == true) {
-			moveZRel(3, -1, 0.2);
+			moveZRel(3, -1, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
 
 		// Walk back on home
 		while (Status.isZ23Home() == false) {
-			moveZRel(3, 0.1, 0.2);
+			moveZRel(3, 0.1, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
@@ -1005,12 +1108,15 @@ public class TVM920Control {
 		FindZHome();
 		findYHome();
 		findXHome();
-		setXYPosMM(465, 444);
-		IsHomed = true;
+		// setXYPosMM(465, 444);
+		setXYPosMM(MAX_X - 5, MAX_Y - 5);
+
 	}
 
-	public void findHome() {
+	public void findHome() throws Exception {
 		log(String.format("TVM920: FindHome()"));
+
+		IsHomed = false;
 
 		if (emulateHardware) {
 			sleep(3);
@@ -1021,6 +1127,28 @@ public class TVM920Control {
 		}
 
 		findXYZHome();
+
+		Location fidLoc = homingFiducialLocation;
+
+		if (fidLoc == null || fidLoc.getX() <= 0 || fidLoc.getY() <= 0 || fidLoc.getX() >= MAX_X
+				|| fidLoc.getY() >= MAX_Y) {
+			log("Homing Fiducial specification was outside of table range");
+		} else {
+			// Move where we think the hardware fiducial is located
+			moveXYThetaAbs(fidLoc.getX(), fidLoc.getY(), -1, 0, 0.5);
+
+			// Try to use vision to set
+			Part homePart = Configuration.get().getPart("FIDUCIAL-HOME");
+			if (homePart != null) {
+				Configuration.get().getMachine().getFiducialLocator().getHomeFiducialLocation(homingFiducialLocation,
+						homePart);
+			} else {
+				log("FIDUCIAL-HOME not found in Parts. Skipping hardware fiducial");
+			}
+		}
+
+		setXYPosMM(fidLoc.getX(), fidLoc.getY());
+		IsHomed = true;
 	}
 
 	public boolean checkEnabled() {
@@ -1029,7 +1157,7 @@ public class TVM920Control {
 
 	//
 	// Sets speeds for various operations. If we have not been homed, then speed
-	// is locked at 30%. TODO: These
+	// is locked at 40%. TODO: These
 	// tables need to be fleshed out for other speed settings
 	//
 	private void setSpeed(double speed) {
@@ -1039,9 +1167,19 @@ public class TVM920Control {
 			throw new IllegalArgumentException("Speed must be between 0.0 and 1.0 inclusive");
 
 		// Speed options
-		byte[] Pct30 = { 7, 0, 2, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0,
-				4, 0, 0, 0, (byte) 0xd0, 7, 0, 0, (byte) 0xd7, 7, 0, 0, (byte) 0xd0, 7, 0, 0, 0xd, 7, 0, 0, (byte) 0xe8,
-				3, 0, 0, (byte) 0xe8, 3, 00, (byte) 0xc4, 9, 0, 0, (byte) 0xc4, 9, 0, 0 };
+
+		/*
+		 * byte[] Pct30 = { 7, 0, 2, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4,
+		 * 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, (byte) 0xd0,
+		 * 7, 0, 0, (byte) 0xd7, 7, 0, 0, (byte) 0xd0, 7, 0, 0, 0xd, 7, 0, 0,
+		 * (byte) 0xe8, 3, 0, 0, (byte) 0xe8, 3, 00,(byte) 0xc4, 9, 0, 0, (byte)
+		 * 0xc4, 9, 0, 0 };
+		 */
+
+		// 40% = speed option is what TVM920 uses for homing
+		byte[] Pct40 = { 7, 0, 3, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0,
+				4, 0, 0, 0, (byte) 0xa0, 0xf, 0, 0, (byte) 0xa0, 0xf, 0, 0, (byte) 0xa0, 0xf, 0, 0, (byte) 0xa0, 0xf, 0,
+				0, (byte) 0xd0, 7, 0, 0, (byte) 0xd0, 7, 0, 0, (byte) 0xa0, 0xf, 0, 0, (byte) 0xa0, 0xf, 0, 0 };
 
 		byte[] Pct50 = { 7, 0, 4, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 0,
 				4, 0, 0, 0, 0x70, 0x17, 0, 0, 0x70, 0x17, 0, 0, 0x70, 0x17, 0, 0, 0x70, 0x17, 0, 0, (byte) 0xb8, 0xb, 0,
@@ -1052,24 +1190,34 @@ public class TVM920Control {
 				(byte) 0xe0, 0x2e, 0, 0, (byte) 0xc8, 0x32, 0, 0, (byte) 0xc8, 0x32, 0, 0, (byte) 0x98, (byte) 0xb7, 0,
 				0, (byte) 0xb0, (byte) 0xb3, 0, 0 };
 
+		// Lock speed if we're not home
 		if (IsHomed == false)
-			speed = 0.2;
+			speed = 0.4;
+
+		byte[] msg = new byte[0];
 
 		if (speed >= 0.9) {
-			sendReceiveUDP(Pct80);
+			msg = Pct80;
 		} else if (speed >= 0.8 && speed < 0.9) {
-			sendReceiveUDP(Pct80);
+			msg = Pct80;
 		} else if (speed >= 0.7 && speed < 0.8) {
-			sendReceiveUDP(Pct50);
+			msg = Pct50;
 		} else if (speed >= 0.6 && speed < 0.7) {
-			sendReceiveUDP(Pct50);
+			msg = Pct50;
 		} else if (speed >= 0.5 && speed < 0.6) {
-			sendReceiveUDP(Pct50);
+			msg = Pct50;
 		} else if (speed >= 0.4 && speed < 0.5) {
-			sendReceiveUDP(Pct30);
+			msg = Pct40;
 		} else if (speed < 0.4) {
-			sendReceiveUDP(Pct30);
+			msg = Pct40;
 		}
+
+		if (msg.length != 0x44) {
+			throw new IllegalArgumentException(
+					"Speed setting resulted in bad message length. Speed:" + Double.toString(speed));
+		}
+
+		sendReceiveUDP(msg);
 	}
 
 	public int ReadRegister(int register) {
