@@ -1009,16 +1009,16 @@ public class TVM920Control {
 	//
 	// Turns on/off down light and turns off up light
 	//
-	public void downLightOn(boolean turnOn) {
-		// Always want UL off if controlling DL
+	public void upLightOn(boolean turnOn) {
+		// Always want DL off if controlling DL
 		sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x80, 0x00, 0x00, 0x00 });
 		
 		if (turnOn){
-			// Turn on DL
+			// Turn on UL
 			sendReceiveUDP(new byte[] { 0x16, 0x00, 0x00, 0x00, (byte) 0x00, 0x01, 0x00, 0x00 });
 		}
 		else{
-			// Turn off UL
+			// Turn off DL
 			sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x00, 0x01, 0x00, 0x00 });
 		}
 	}
@@ -1026,17 +1026,17 @@ public class TVM920Control {
 	//
 	// Turns on up light and turns off down light
 	//
-	public void upLightOn(boolean turnOn) {
-		// Always want DL off if controlling UL
+	public void downLightOn(boolean turnOn) {
+		// Always want UL off if controlling UL
 		sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x00, 0x01, 0x00, 0x00 });
 		
 		if (turnOn){
-			// Turn on UL
+			// Turn on DL
 			sendReceiveUDP(new byte[] { 0x16, 0x00, 0x00, 0x00, (byte) 0x80, 0x00, 0x00, 0x00 });
 		}
 		else{
-			// Turn off UL
-			sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x00, 0x01, 0x00, 0x00 });
+			// Turn off DL
+			sendReceiveUDP(new byte[] { 0x17, 0x00, 0x00, 0x00, (byte) 0x80, 0x00, 0x00, 0x00 });
 		}
 	}
 
