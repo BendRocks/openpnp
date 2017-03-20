@@ -143,7 +143,7 @@ public class TVM920Driver implements ReferenceDriver {
 		
 		// Do we need to do a z move?
 		if (Double.isNaN(z) == false && nozzleIndex != -1){
-			hw.moveZAbs(nozzleIndex, z, speed);
+			hw.moveZAbs(nozzleIndex, z, speed);  
 		}
 		
 		hw.moveXYThetaAbs(x, y, nozzleIndex, theta, speed);
