@@ -159,12 +159,18 @@ public class TVM920Driver implements ReferenceDriver {
 		// the a lot more moves will be requested later slowing things down considerably. So, 
 		// we update the location
 
+		/*
 		hl = hl.derive( 
 				       Double.isNaN(x) ? null : hw.getXPosMM(), 
 				       Double.isNaN(y) ? null : hw.getYPosMM(), 
 				       Double.isNaN(z) || nozzleIndex == -1 ? null : hw.getZPosMM(nozzleIndex),
 				       Double.isNaN(theta) || nozzleIndex == -1 ? null : hw.getThetaPosDeg(nozzleIndex)
-				      );
+				      );*/
+		
+        hl = hl.derive(Double.isNaN(location.getX()) ? null : location.getX(),
+                Double.isNaN(location.getY()) ? null : location.getY(),
+                Double.isNaN(location.getZ()) ? null : location.getZ(),
+                Double.isNaN(location.getRotation()) ? null : location.getRotation());
 
 		setHeadLocation(hm.getHead(), hl);
 	}

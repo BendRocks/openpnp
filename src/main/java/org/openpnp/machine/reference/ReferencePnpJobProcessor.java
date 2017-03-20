@@ -346,6 +346,7 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
         fireTextStatus("Performing fiducial checks.");
 
         FiducialLocator locator = Configuration.get().getMachine().getFiducialLocator();
+        
         for (BoardLocation boardLocation : job.getBoardLocations()) {
             if (!boardLocation.isEnabled()) {
                 continue;
