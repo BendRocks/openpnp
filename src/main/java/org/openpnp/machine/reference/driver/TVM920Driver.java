@@ -141,6 +141,17 @@ public class TVM920Driver implements ReferenceDriver {
 		double z = location.getZ();
 		double theta = location.getRotation();
 		
+		if (Double.isNaN(theta) == false)
+		{
+			while (theta < 0){
+				theta += 360;
+			}
+			
+			while (theta >= 360){
+				theta -= 360;
+			}
+		}
+		
 		// Do we need to do a z move?
 		if (Double.isNaN(z) == false && nozzleIndex != -1){
 			hw.moveZAbs(nozzleIndex, z, speed);  
