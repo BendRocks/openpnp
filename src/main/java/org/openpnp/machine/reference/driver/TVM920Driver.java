@@ -143,11 +143,11 @@ public class TVM920Driver implements ReferenceDriver {
 		
 		if (Double.isNaN(theta) == false)
 		{
-			while (theta < 0){
+			while (theta < -180){
 				theta += 360;
 			}
 			
-			while (theta >= 360){
+			while (theta >= 180){
 				theta -= 360;
 			}
 		}

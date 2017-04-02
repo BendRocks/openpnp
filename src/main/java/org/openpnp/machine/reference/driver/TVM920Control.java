@@ -290,7 +290,7 @@ public class TVM920Control {
 	private double TicksPerMM_X = 327.55;
 	private double TicksPerMM_Y = 204.85;
 	private double TicksPerMM_Z = 262.37;
-	private double TicksPerDegree = 7.11; // 640 ticks moves 90 degrees
+	private double TicksPerDegree = 17.77 ; // 640 ticks moves 90 degrees
 
 	// This is the max allowed. This applies AFTER we've been homed
 	private double MAX_X = 470;
@@ -748,11 +748,12 @@ public class TVM920Control {
 					throw new IllegalArgumentException(
 							"TVM920Control:MoveXYThetaAbs Bad head index: " + Integer.toString(head));
 
+				/*
 				while (theta < 0)
 					theta += 360;
 
 				while (theta >= 360)
-					theta -= 360;
+					theta -= 360;*/
 			}
 		}
 
