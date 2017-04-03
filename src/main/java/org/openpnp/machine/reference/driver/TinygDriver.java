@@ -75,6 +75,7 @@ public class TinygDriver extends AbstractSerialPortDriver implements Runnable {
         super.connect();
 
         readerThread = new Thread(this);
+        readerThread.setDaemon(true);
         readerThread.start();
 
         for (int i = 0; i < 10 && !connected; i++) {
@@ -238,7 +239,7 @@ public class TinygDriver extends AbstractSerialPortDriver implements Runnable {
 
         try {
             if (readerThread != null && readerThread.isAlive()) {
-                readerThread.join();
+                readerThread.join(3000);
             }
         }
         catch (Exception e) {

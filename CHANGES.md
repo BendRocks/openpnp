@@ -1,6 +1,117 @@
 This file lists major or notable changes to OpenPnP in chronological order. This is not
 a complete change list, only those that may directly interest or affect users.
 
+# 2017-04-01
+
+* Auto Panelization
+
+	Thanks to @BendRocks we now have a robust panelization solution in OpenPnP! Panels allow you
+	to quickly set up multiple copies of a board in an array and allow you to have panel
+	fiducials in addition to board fiducials. There is also a quick X out feature that makes it
+	easy to mark boards in the array that are damaged and should not be placed.
+	
+	This feature is a work in progress. There are some known issues and some limitations
+	but it has matured enough that it's ready for people to start trying it out.
+	
+	Full documentation for this feature is coming soon and will be available at:
+	https://github.com/openpnp/openpnp/wiki/Panelization
+	
+	For more information about this feature, please see the following links:
+	https://github.com/openpnp/openpnp/issues/128
+	https://github.com/openpnp/openpnp/pull/456
+	https://groups.google.com/forum/#!msg/openpnp/_ni0LK8LR8g/5u-0-P-1EwAJ;context-place=forum/openpnp
+
+# 2017-03-31
+
+* Job Placement Status
+
+	With many thanks to @iAmRoland we now have a great status display of placements as a job
+	is run. Their description from the pull request describes the feature nicely:
+	
+	> Once the start button is pressed, it will mark all pending placements with a yellow color. 
+	> When it's processing a placement it will display a blue color on the ID cell. Once it's done
+	> with all placements with the same ID, it then marks that cell with a green color. If no
+	> placement is going to be done then the cell is left white.
+	
+	@iAmRoland even included a nice GIF that shows how it looks:
+	https://camo.githubusercontent.com/954ded479f650507bece8c199c7b73233708097e/687474703a2f2f692e696d6775722e636f6d2f6d6c4130716d6b2e6a7067
+	
+	This work was performed in PR https://github.com/openpnp/openpnp/pull/493 and partially
+	addresses the feature described in issue https://github.com/openpnp/openpnp/issues/205 and
+	https://github.com/openpnp/openpnp/issues/280.
+
+# 2017-03-26
+
+* Auto Update Fixed, Version Number Improvements
+
+	An error that was causing the auto updater to not work has been fixed. In the process,
+	the OpenPnP version numbering scheme has been changed and improved. Version numbers were
+	previously just an inscrutable Git hash. They are now in the format of
+	2017-03-26_18-56-32.0be8a03, with the part before the period representing the date of the
+	build and the part after the period representing the Git hash. This makes it easy to
+	identify when the code was built and how old it is, and the Git hash can be used to
+	identify a specific commit.
+	
+* Glue Feature Removed
+
+	The Glue Dispense feature has been deprecated and removed. This feature was not being used
+	and it was causing maintainability problems. If there is interest in the feature in the
+	future it will be rewritten. More information about this decision is available at
+	https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/openpnp/1-CSpnoPQGY/k6qUT9VZAQAJ
+
+# 2017-03-21
+
+* Submit Diagnostics
+
+	You can now submit a very detailed diagnostics package about OpenPnP right from OpenPnP itself!
+	In the Help menu just click Submit Diagnostics and follow the instructions. The result will
+	be a link to a [Gist](https://gist.github.com/) on Github that contains information and
+	images from OpenPnP. You can share the link on the mailing list or elsewhere to assist
+	people in helping with any issue you might be having.
+
+# 2017-03-16
+
+* Named CSV Importer Improvements
+
+	Thanks to @Misfittech the Named CSV Importer can now handle Altium R14 files and now
+	has the option to set part heights when available. It also supports the ability to
+	import data that contains values in mils.
+	 
+* Logging Improvements
+
+	With many thanks to @pfried the Log tab and the logging system have seen several improvements:
+	* Log panel is now searchable.
+	* Select and copy lines from the log.
+	* Enable/disable system output.
+	* Option to auto-scroll, or not.
+	
+	More information about this feature can be found at:
+	https://github.com/openpnp/openpnp/issues/288
+
+# 2017-03-05
+
+* Force Upper Case in Gcode Driver Console
+
+	There is now an option, on by default, that forces commands sent from the Gcode console
+	to upper case. Previously upper case was forced without option, but now you can turn it off
+	if you like.
+
+# 2017-03-04
+
+* Position Camera and Continue
+
+	Thanks to @BendRocks for two new buttons in the Job and Placements panel. The buttons
+	which look like the Position Camera button with a right arrow added allows you to
+	position the camera and then select either the next board or placement. This allows you
+	to very easily and quickly move through a job and see that all of your placements
+	are configured correctly.
+	
+* Console Output in Log Panel
+
+	Thanks to @pfried, console output (System.out, System.err) is now included in the Log
+	panel at the Info and Error levels respectively. One major benefit of this is that
+	scripting output will now be visible in the Log panel. 
+
 # 2017-02-27
 
 * ReferenceDragFeeder Configuration Actuator Positioning

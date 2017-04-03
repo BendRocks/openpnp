@@ -293,6 +293,7 @@ public class SprinterDriver extends AbstractSerialPortDriver implements Runnable
             // keep the thread from quickly parsing any responses messages
             // and notifying before we get a chance to wait.
             readerThread = new Thread(this);
+            readerThread.setDaemon(true);
             readerThread.start();
             // Wait up to 3 seconds for Sprinter to say Hi
             // If we get anything at this point it will have been the settings
@@ -353,7 +354,7 @@ public class SprinterDriver extends AbstractSerialPortDriver implements Runnable
 
         try {
             if (readerThread != null && readerThread.isAlive()) {
-                readerThread.join();
+                readerThread.join(3000);
             }
         }
         catch (Exception e) {

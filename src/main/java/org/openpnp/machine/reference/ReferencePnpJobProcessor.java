@@ -30,13 +30,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.openpnp.gui.support.Wizard;
-import org.openpnp.machine.reference.ReferencePnpJobProcessor.JobPlacement.Status;
 import org.openpnp.machine.reference.wizards.ReferencePnpJobProcessorConfigurationWizard;
 import org.openpnp.model.BoardLocation;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.Job;
 import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
+import org.openpnp.model.Panel;
 import org.openpnp.model.Part;
 import org.openpnp.model.Placement;
 import org.openpnp.spi.Feeder;
@@ -46,6 +46,7 @@ import org.openpnp.spi.Machine;
 import org.openpnp.spi.Nozzle;
 import org.openpnp.spi.NozzleTip;
 import org.openpnp.spi.PartAlignment;
+import org.openpnp.spi.PnpJobProcessor.JobPlacement.Status;
 import org.openpnp.spi.base.AbstractJobProcessor;
 import org.openpnp.spi.base.AbstractPnpJobProcessor;
 import org.openpnp.util.Collect;
@@ -79,34 +80,6 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
         Abort,
         Skip,
         Reset
-    }
-
-    public static class JobPlacement {
-        public enum Status {
-            Pending,
-            Processing,
-            Skipped,
-            Complete
-        }
-
-        public final BoardLocation boardLocation;
-        public final Placement placement;
-        public Status status = Status.Pending;
-
-        public JobPlacement(BoardLocation boardLocation, Placement placement) {
-            this.boardLocation = boardLocation;
-            this.placement = placement;
-        }
-
-        public double getPartHeight() {
-            return placement.getPart().getHeight().convertToUnits(LengthUnit.Millimeters)
-                    .getValue();
-        }
-
-        @Override
-        public String toString() {
-            return placement.getId();
-        }
     }
 
     public static class PlannedPlacement {
@@ -146,6 +119,8 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
     protected List<PlannedPlacement> plannedPlacements = new ArrayList<>();
 
     protected Map<BoardLocation, Location> boardLocationFiducialOverrides = new HashMap<>();
+    
+    long startTime;
 
     public ReferencePnpJobProcessor() {
         fsm.add(State.Uninitialized, Message.Initialize, State.PreFlight, this::doInitialize);
@@ -284,6 +259,8 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
      * @throws Exception
      */
     protected void doPreFlight() throws Exception {
+        startTime = System.currentTimeMillis();
+        
         // Create some shortcuts for things that won't change during the run
         this.machine = Configuration.get().getMachine();
         this.head = this.machine.getDefaultHead();
@@ -346,6 +323,16 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
         fireTextStatus("Performing fiducial checks.");
 
         FiducialLocator locator = Configuration.get().getMachine().getFiducialLocator();
+        
+        if (job.isUsingPanel() && job.getPanels().get(0).isCheckFiducials()){
+        	Panel p = job.getPanels().get(0);
+        	
+        	BoardLocation boardLocation = job.getBoardLocations().get(0);
+        	
+        	Location location = locator.locateBoard(boardLocation, p.isCheckFiducials());
+        	boardLocationFiducialOverrides.put(boardLocation, location);
+        	Logger.debug("Panel Fiducial check for {}", boardLocation);
+        }
         
         for (BoardLocation boardLocation : job.getBoardLocations()) {
             if (!boardLocation.isEnabled()) {
@@ -740,6 +727,8 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
             fireTextStatus("Park nozzle.");
             MovableUtils.moveToLocationAtSafeZ(head.getDefaultNozzle(), head.getParkLocation());
         }
+        
+        Logger.info("Job finished in {}ms", System.currentTimeMillis() - startTime);
     }
 
     protected void doReset() throws Exception {
@@ -791,6 +780,18 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
     public void setParkWhenComplete(boolean parkWhenComplete) {
         this.parkWhenComplete = parkWhenComplete;
     }
+    
+    public List<JobPlacement> getJobPlacementsById(String id) { 
+        return jobPlacements.stream().filter((jobPlacement) -> {
+            return jobPlacement.toString() == id;
+        }).collect(Collectors.toList()); 
+    } 
+    
+    public List<JobPlacement> getJobPlacementsById(String id, Status status) {
+        return jobPlacements.stream().filter((jobPlacement) -> {
+            return jobPlacement.toString() == id && jobPlacement.status == status;
+        }).collect(Collectors.toList());
+    }
 
     // Sort a List<JobPlacement> by the number of nulls it contains in ascending order.
     Comparator<List<JobPlacement>> byFewestNulls = (a, b) -> {
@@ -819,4 +820,5 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
         }
         return countA - countB;
     };
+
 }
