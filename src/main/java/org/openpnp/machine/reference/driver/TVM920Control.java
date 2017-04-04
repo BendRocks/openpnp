@@ -290,7 +290,8 @@ public class TVM920Control {
 	private double TicksPerMM_X = 327.55;
 	private double TicksPerMM_Y = 204.85;
 	private double TicksPerMM_Z = 262.37;
-	private double TicksPerDegree = 17.77 ; // 640 ticks moves 90 degrees
+	private double TicksPerDegree = 17.77 ; // 6400 ticks moves 360 degrees
+	private double zArmLength = 20;         // arm length in mm
 
 	// This is the max allowed. This applies AFTER we've been homed
 	private double MAX_X = 470;
@@ -651,7 +652,8 @@ public class TVM920Control {
 		isZStale[head] = true;
 
 		// Compute move
-		int zInt = (int) Math.round(z * TicksPerMM_Z);
+		//int zInt = (int) Math.round(z * TicksPerMM_Z);
+		int zInt = distanceToTicks(z);
 
 		if (head == 0) {
 			moveCmd[0x15] = (byte) (zInt >> 0);
@@ -747,13 +749,6 @@ public class TVM920Control {
 				if (head < -1 || head > 3)
 					throw new IllegalArgumentException(
 							"TVM920Control:MoveXYThetaAbs Bad head index: " + Integer.toString(head));
-
-				/*
-				while (theta < 0)
-					theta += 360;
-
-				while (theta >= 360)
-					theta -= 360;*/
 			}
 		}
 
@@ -919,6 +914,19 @@ public class TVM920Control {
 		log(String.format("TVM920: GetYPosMM() returned %.3f", result));
 		return result;
 	}
+	
+	private double ticksToDistance(int ticks){
+		double degrees = ticks / TicksPerDegree;
+		
+		return zArmLength * Math.sin(degrees /( Math.PI * 2));
+	}
+	
+	private int distanceToTicks(double distance)
+	{
+		double degrees = Math.asin(distance/zArmLength) / (Math.PI * 2) * 360;
+		return (int)Math.round(degrees * TicksPerDegree);
+	}
+	
 
 	//
 	// Gets the position from the last status message and converts to MM. Note
@@ -934,9 +942,9 @@ public class TVM920Control {
 
 		GetStatus();
 		if (head == 0 || head == 1)
-			zPosCached[head] = Status.getZ01Ticks() / TicksPerMM_Z * (head == 1 ? -1.0 : 1.0);
+			zPosCached[head] = ticksToDistance(Status.getZ01Ticks()) * (head == 1 ? -1.0 : 1.0);
 		else
-			zPosCached[head] = Status.getZ23Ticks() / TicksPerMM_Z * (head == 3 ? -1.0 : 1.0);
+			zPosCached[head] = ticksToDistance(Status.getZ23Ticks()) * (head == 3 ? -1.0 : 1.0);
 
 		log(String.format("TVM920: GetZPosMM() returned %.3f", zPosCached[head]));
 		isZStale[head] = false;

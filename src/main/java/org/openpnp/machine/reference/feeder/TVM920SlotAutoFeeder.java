@@ -49,7 +49,7 @@ public class TVM920SlotAutoFeeder extends ReferenceSlotAutoFeeder {
 			
 			// Feeder name in the format of 'F07' or 'R13'
 			String feederName = slot.getName().substring(1, 3);
-			int feederIndex = Integer.valueOf(feederName);
+			int feederIndex = Integer.valueOf(feederName) - 1;
 
 			if (slot.getName().charAt(0) == 'R') {
 				feederIndex += 32;
