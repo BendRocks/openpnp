@@ -21,6 +21,9 @@ package org.openpnp.machine.reference.feeder.wizards;
 
 import java.awt.Color;
 import java.awt.event.ActionEvent;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -39,6 +42,9 @@ import org.jdesktop.beansbinding.AutoBinding;
 import org.jdesktop.beansbinding.AutoBinding.UpdateStrategy;
 import org.jdesktop.beansbinding.Binding;
 import org.jdesktop.beansbinding.BindingListener;
+import org.openpnp.gui.MainFrame;
+import org.openpnp.gui.components.CameraView;
+import org.openpnp.gui.components.CameraViewFilter;
 import org.openpnp.gui.components.ComponentDecorators;
 import org.openpnp.gui.components.LocationButtonsPanel;
 import org.openpnp.gui.support.AbstractConfigurationWizard;
@@ -54,8 +60,19 @@ import org.openpnp.machine.reference.feeder.ReferenceAutoFeeder.ActuatorType;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder.Bank;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder.Feeder;
+import org.openpnp.machine.reference.feeder.ReferenceStripFeeder.TapeType;
 import org.openpnp.model.Configuration;
+import org.openpnp.model.Footprint;
+import org.openpnp.model.Length;
+import org.openpnp.model.LengthUnit;
+import org.openpnp.model.Footprint.Pad;
+import org.openpnp.spi.Camera;
+import org.openpnp.vision.FluentCv;
+import org.simpleframework.xml.Attribute;
+import org.simpleframework.xml.Element;
+import org.openpnp.model.Location;
 import org.openpnp.model.Part;
+import org.openpnp.model.Package;
 
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
@@ -66,6 +83,135 @@ import java.awt.FlowLayout;
 public class TVM920SlotAutoFeederConfigurationWizard
         extends AbstractConfigurationWizard {
     private final ReferenceSlotAutoFeeder feeder;
+    
+    @Element(required = false)
+    private Location referenceHoleLocation = new Location(LengthUnit.Millimeters);
+
+    @Element(required = false)
+    private Location lastHoleLocation = new Location(LengthUnit.Millimeters);
+
+    @Element(required = false)
+    private Length partPitch = new Length(4, LengthUnit.Millimeters);
+
+    @Element(required = false)
+    private Length tapeWidth = new Length(8, LengthUnit.Millimeters);
+
+    @Attribute(required = false)
+    private TapeType tapeType = TapeType.WhitePaper;
+
+    @Attribute(required = false)
+    private boolean visionEnabled = true;
+
+    @Attribute
+    private int feedCount = 0;
+
+    private Length holeDiameter = new Length(1.5, LengthUnit.Millimeters);
+
+    private Length holePitch = new Length(4, LengthUnit.Millimeters);
+
+    private Length referenceHoleToPartLinear = new Length(2, LengthUnit.Millimeters);
+
+    private Location visionOffsets;
+    private Location visionLocation;
+
+    public Length getHoleDiameterMin() {
+        return getHoleDiameter().multiply(0.9);
+    }
+
+    public Length getHoleDiameterMax() {
+        return getHoleDiameter().multiply(1.1);
+    }
+
+    public Length getHolePitchMin() {
+        return getHolePitch().multiply(0.9);
+    }
+
+    public Length getHoleDistanceMin() {
+        return getTapeWidth().multiply(0.25);
+    }
+
+    public Length getHoleDistanceMax() {
+        return getTapeWidth().multiply(1.5);
+    }
+
+    public Length getHoleLineDistanceMax() {
+        return new Length(0.5, LengthUnit.Millimeters);
+    }
+
+    public int getHoleBlurKernelSize() {
+        return 9;
+    }
+    
+    private Length getHoleToPartLateral() {
+        Length tapeWidth = this.tapeWidth.convertToUnits(LengthUnit.Millimeters);
+        return new Length(tapeWidth.getValue() / 2 - 0.5, LengthUnit.Millimeters);
+    }
+
+    public TapeType getTapeType() {
+        return tapeType;
+    }
+
+    public void setTapeType(TapeType tapeType) {
+        this.tapeType = tapeType;
+    }
+
+    public Location getReferenceHoleLocation() {
+        return referenceHoleLocation;
+    }
+
+    public void setReferenceHoleLocation(Location referenceHoleLocation) {
+        this.referenceHoleLocation = referenceHoleLocation;
+        visionLocation = null;
+    }
+
+    public Location getLastHoleLocation() {
+        return lastHoleLocation;
+    }
+
+    public void setLastHoleLocation(Location lastHoleLocation) {
+        this.lastHoleLocation = lastHoleLocation;
+        visionLocation = null;
+    }
+
+    public Length getHoleDiameter() {
+        return holeDiameter;
+    }
+
+    public void setHoleDiameter(Length holeDiameter) {
+        this.holeDiameter = holeDiameter;
+    }
+
+    public Length getHolePitch() {
+        return holePitch;
+    }
+
+    public void setHolePitch(Length holePitch) {
+        this.holePitch = holePitch;
+    }
+
+    public Length getPartPitch() {
+        return partPitch;
+    }
+
+    public void setPartPitch(Length partPitch) {
+        this.partPitch = partPitch;
+    }
+
+    public Length getTapeWidth() {
+        return tapeWidth;
+    }
+
+    public void setTapeWidth(Length tapeWidth) {
+        this.tapeWidth = tapeWidth;
+    }
+    
+
+	List<Location> part1HoleLocations;
+	Camera autoSetupCamera;
+
+    
+    
+    
     //private JTextField actuatorName;
     //private JTextField actuatorValue;
     //private JTextField postPickActuatorName;
@@ -210,7 +356,10 @@ public class TVM920SlotAutoFeederConfigurationWizard
         feederPanel.add(offsetLocButtons, "12, 4");
         
         JLabel lblPart = new JLabel("Part");
-        feederPanel.add(lblPart, "2, 6, right, default");
+        feederPanel.add(lblPart, "2, 6, right, default"); 
+        
+        JButton findSprocketBtn = new JButton(findSprocketHole);
+        feederPanel.add(findSprocketBtn, "6, 6");
         
         feederPartCb = new JComboBox();
         feederPanel.add(feederPartCb, "4, 6, 3, 1");
@@ -500,10 +649,115 @@ public class TVM920SlotAutoFeederConfigurationWizard
             bankCb.removeItem(bank);
         }
     };
+    
+    /*
+    private Action findSprocketHole = new AbstractAction("Find Sprocket Hole"){
+    	@Override
+    	public void actionPerformed(ActionEvent e){
+    		//getHomeFiducialLocation(Location n, Part part) 
+    		
+    		
+    		try {
+    			
+    			Location loc = Configuration.get().getMachine().getDefaultHead().getDefaultCamera().getLocation();
+    			Pad pd = new Pad();
+    			pd.setWidth(1.75);
+    			pd.setHeight(1);
+    			pd.setRoundness(0);
+    			Footprint fp = new Footprint();
+    			fp.addPad(pd);
+    			Package pk = new Package("trash1");
+    			pk.setFootprint(fp);
+    			Part p = new Part("trash2");
+    			p.setPackage(pk);
+				Configuration.get().getMachine().getFiducialLocator().getHomeFiducialLocation(loc, p);
+				
+    			List<Location> part1HoleLocations;
+    			Camera autoSetupCamera =
+                        Configuration.get().getMachine().getDefaultHead().getDefaultCamera();
+    			CameraView cameraView = MainFrame.get().getCameraViews().getCameraView(autoSetupCamera);
+    			part1HoleLocations = findHoles(autoSetupCamera);
+			} catch (Exception e1) {
+
+			} 
+    	}
+    };*/
+    
+    private Action findSprocketHole = new AbstractAction("Find Sprocket Hole") {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            try {
+                autoSetupCamera =
+                        Configuration.get().getMachine().getDefaultHead().getDefaultCamera();
+            }
+            catch (Exception ex) {
+                MessageBoxes.errorBox(getTopLevelAncestor(), "Auto Setup Failure", ex);
+                return;
+            }
+
+            //btnAutoSetup.setAction(autoSetupCancel);
+
+            CameraView cameraView = MainFrame.get().getCameraViews().getCameraView(autoSetupCamera);
+            //cameraView.addActionListener(autoSetupPart1Clicked);
+            //cameraView.setText("Click on the center of the first part in the tape.");
+            cameraView.flash();
+
+            final boolean showDetails = (e.getModifiers() & ActionEvent.ALT_MASK) != 0;
+
+            cameraView.setCameraViewFilter(new CameraViewFilter() {
+                @Override
+                public BufferedImage filterCameraImage(Camera camera, BufferedImage image) {
+                    return showHoles(camera, image, showDetails);
+                }
+            });
+        }
+    };    
+    
+    private List<Location> findHoles(Camera camera) {
+        List<Location> holeLocations = new ArrayList<>();
+        new FluentCv().setCamera(camera).settleAndCapture().toGray()
+                .blurGaussian(getHoleBlurKernelSize())
+                .find
+                
+                .findCirclesHough(getHoleDiameterMin(), getHoleDiameterMax(),
+                        getHolePitchMin())
+                .filterCirclesByDistance(getHoleDistanceMin(), getHoleDistanceMax())
+                .filterCirclesToLine(getHoleLineDistanceMax())
+                .convertCirclesToLocations(holeLocations);
+        return holeLocations;
+    }
+    
+    private BufferedImage showHoles(Camera camera, BufferedImage image, boolean showDetails) {
+        if (showDetails) {
+            return new FluentCv().setCamera(camera).toMat(image, "original").toGray()
+                    .blurGaussian(getHoleBlurKernelSize())
+                    .findCirclesHough(getHoleDiameterMin(), getHoleDiameterMax(),
+                            getHolePitchMin(), "houghUnfiltered")
+                    .drawCircles("original", Color.red, "unfiltered").recall("houghUnfiltered")
+                    .filterCirclesByDistance(getHoleDistanceMin(),
+                            getHoleDistanceMax(), "houghDistanceFiltered")
+                    .drawCircles("unfiltered", Color.blue, "distanceFiltered")
+                    .recall("houghDistanceFiltered")
+                    .filterCirclesToLine(getHoleLineDistanceMax())
+                    .drawCircles("distanceFiltered", Color.green).toBufferedImage();
+        }
+        else {
+            return new FluentCv().setCamera(camera).toMat(image, "original").toGray()
+                    .blurGaussian(getHoleBlurKernelSize())
+                    .findCirclesHough(getHoleDiameterMin(), getHoleDiameterMax(),
+                            getHolePitchMin())
+                    .filterCirclesByDistance(getHoleDistanceMin(),
+                            getHoleDistanceMax())
+                    .filterCirclesToLine(getHoleLineDistanceMax())
+                    .drawCircles("original", Color.green).toBufferedImage();
+        }
+    }
+
 
     private JComboBox feederCb;
     private JComboBox bankCb;    
     private JComboBox feederPartCb;
+   
     private JTextField xOffsetTf;
     private JTextField yOffsetTf;
     private JTextField zOffsetTf;
