@@ -717,8 +717,6 @@ public class TVM920SlotAutoFeederConfigurationWizard
         List<Location> holeLocations = new ArrayList<>();
         new FluentCv().setCamera(camera).settleAndCapture().toGray()
                 .blurGaussian(getHoleBlurKernelSize())
-                .find
-                
                 .findCirclesHough(getHoleDiameterMin(), getHoleDiameterMax(),
                         getHolePitchMin())
                 .filterCirclesByDistance(getHoleDistanceMin(), getHoleDistanceMax())
