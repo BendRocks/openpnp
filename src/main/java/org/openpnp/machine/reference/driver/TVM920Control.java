@@ -917,13 +917,26 @@ public class TVM920Control {
 	
 	private double ticksToDistance(int ticks){
 		double degrees = ticks / TicksPerDegree;
-		
-		return zArmLength * Math.sin(degrees /( Math.PI * 2));
+	
+		if (degrees <= 90)
+			return zArmLength * Math.sin(degrees / 180 * Math.PI);
+		else
+			return 2 * zArmLength - Math.sin(Math.PI - degrees / 180 * Math.PI);
 	}
 	
+	// Distance is assumed to be a negative quantity (reference to Z home)
 	private int distanceToTicks(double distance)
 	{
-		double degrees = Math.asin(distance/zArmLength) / (Math.PI * 2) * 360;
+		distance = -distance;
+		double degrees;
+		
+		if (distance > zArmLength){
+			degrees = (Math.PI - Math.asin(2*zArmLength - distance)) / Math.PI * 180;
+		}
+		else{
+			degrees = Math.asin(distance/zArmLength) / Math.PI	* 180;
+		}
+
 		return (int)Math.round(degrees * TicksPerDegree);
 	}
 	
