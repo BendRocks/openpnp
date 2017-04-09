@@ -40,6 +40,8 @@ import javax.swing.border.TitledBorder;
 
 import org.jdesktop.swingx.JXCollapsiblePane;
 import org.openpnp.ConfigurationListener;
+import org.openpnp.gui.support.CameraItem;
+import org.openpnp.gui.support.HeadMountableItem;
 import org.openpnp.gui.support.Icons;
 import org.openpnp.gui.support.MessageBoxes;
 import org.openpnp.gui.support.NozzleItem;
@@ -68,24 +70,17 @@ public class MachineControlsPanel extends JPanel {
     private static final boolean PREF_JOG_CONTROLS_EXPANDED_DEF = true;
     private Preferences prefs = Preferences.userNodeForPackage(MachineControlsPanel.class);    
     
-    private Nozzle selectedNozzle;
-    private JComboBox comboBoxNozzles;
+    private HeadMountable selectedTool;
+    
+    private JComboBox comboBoxHeadMountable;
 
     private JogControlsPanel jogControlsPanel;
 
-    private enum DroDisplayEnum {NOZZLE, SAVED, DEFAULTCAM;
-    		private static DroDisplayEnum[] vals = values();
-    		public DroDisplayEnum next(){
-    			return vals[(this.ordinal()+1) % values().length];
-    		}
-    }
     
-    private DroDisplayEnum droDisplayState = DroDisplayEnum.NOZZLE;
-    private Location markLocation;
+    private Location markLocation = null;
 
     private Color droNormalColor = new Color(0xBDFFBE);
     private Color droSavedColor = new Color(0x90cce0);
-    private Color droHeadColor = new Color(0xe1f24c);
     
 
     /**
@@ -101,15 +96,18 @@ public class MachineControlsPanel extends JPanel {
         configuration.addListener(configurationListener);
     }
 
-    public void setSelectedNozzle(Nozzle nozzle) {
-        selectedNozzle = nozzle;
-        comboBoxNozzles.setSelectedItem(selectedNozzle);
-        updateDros();
-    }
-
     public Nozzle getSelectedNozzle() {
-        return selectedNozzle;
+    	if (selectedTool instanceof NozzleItem){
+    		return ((NozzleItem)(selectedTool)).getNozzle();
+    	}
+    				
+        try {
+			return configuration.getMachine().getDefaultHead().getDefaultNozzle();
+		} catch (Exception e) {
+			return null;
+		}
     }
+    
 
     public PasteDispenser getSelectedPasteDispenser() {
         try {
@@ -129,7 +127,13 @@ public class MachineControlsPanel extends JPanel {
      * @return
      */
     public HeadMountable getSelectedTool() {
-        return getSelectedNozzle();
+        return selectedTool;
+    }
+    
+    public void setSelectedTool(HeadMountable hm) {
+    	selectedTool= hm;
+    	comboBoxHeadMountable.setSelectedItem(selectedTool);
+    	updateDros();
     }
 
     public JogControlsPanel getJogControlsPanel() {
@@ -146,25 +150,11 @@ public class MachineControlsPanel extends JPanel {
     }
 
     public Location getCurrentLocation() {
-        if (selectedNozzle == null) {
+        if (selectedTool == null) {
             return null;
         }
 
-        Location l = null;
-        
-        switch (droDisplayState){
-        case NOZZLE:
-        case SAVED:
-        	l = selectedNozzle.getLocation();
-        	break;
-        case DEFAULTCAM:
-        	try {
-				l = selectedNozzle.getHead().getDefaultCamera().getLocation();
-			} catch (Exception e) {
-				return null;
-			}
-        	break;
-        }
+        Location l = selectedTool.getLocation();
         
         l = l.convertToUnits(configuration.getSystemUnits());
 
@@ -177,17 +167,8 @@ public class MachineControlsPanel extends JPanel {
             return;
         }
 
-        switch (droDisplayState){
-        case NOZZLE:
-        	MainFrame.get().getDroLabel().setToolTipText("Selected Nozzle");
-        	break;
-        case SAVED:
+        if (markLocation != null) {
         	l = l.subtract(markLocation);
-        	MainFrame.get().getDroLabel().setToolTipText("Relative");
-        	break;
-        case DEFAULTCAM:
-        	MainFrame.get().getDroLabel().setToolTipText("Default Camera");
-        	break;
         }
 
         double x, y, z, c;
@@ -233,16 +214,17 @@ public class MachineControlsPanel extends JPanel {
                         FormSpecs.RELATED_GAP_COLSPEC, ColumnSpec.decode("default:grow"),},
                 new RowSpec[] {FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,}));
 
-        comboBoxNozzles = new JComboBox();
-        comboBoxNozzles.addActionListener(new ActionListener() {
+        comboBoxHeadMountable = new JComboBox();
+        comboBoxHeadMountable.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                setSelectedNozzle(((NozzleItem) comboBoxNozzles.getSelectedItem()).getNozzle());
+            	HeadMountableItem selectedItem = (HeadMountableItem)comboBoxHeadMountable.getSelectedItem();
+            	setSelectedTool(selectedItem.getItem());
             }
         });
 
         panel.add(collapseButton, "2, 2");
-        panel.add(comboBoxNozzles, "4, 2, fill, default");
+        panel.add(comboBoxHeadMountable, "4, 2, fill, default");
         collapsePane.add(jogControlsPanel);
         add(collapsePane);
 
@@ -283,7 +265,7 @@ public class MachineControlsPanel extends JPanel {
         @Override
         public void actionPerformed(ActionEvent arg0) {
             UiUtils.submitUiMachineTask(() -> {
-                selectedNozzle.getHead().home();
+            	selectedTool.getHead().home();
             });
         }
     };
@@ -322,7 +304,7 @@ public class MachineControlsPanel extends JPanel {
         @Override
         public void machineHeadActivity(Machine machine, Head head) {
             EventQueue.invokeLater(() -> updateDros());
-            EventQueue.invokeLater(() -> comboBoxNozzles.repaint());
+            EventQueue.invokeLater(() -> comboBoxHeadMountable.repaint());
         }
 
         @Override
@@ -359,22 +341,15 @@ public class MachineControlsPanel extends JPanel {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     SwingUtilities.invokeLater(() -> {
+                        if (markLocation == null) {
                     	
-                    	droDisplayState = droDisplayState.next();
-                    	
-                    	switch (droDisplayState){
-                    	case NOZZLE:
-                    		MainFrame.get().getDroLabel().setBackground(droNormalColor);
-                    		break;
                     		
-                    	case SAVED:
                     		markLocation = getCurrentLocation();
                     		MainFrame.get().getDroLabel().setBackground(droSavedColor);
-                    		break;
-                    		
-                    	case DEFAULTCAM:
-                    		MainFrame.get().getDroLabel().setBackground(droHeadColor);
-                    		break;
+                        }
+                        else {
+                            markLocation = null;
+                            MainFrame.get().getDroLabel().setBackground(droNormalColor);
                     		
                     	}
                     	
@@ -387,13 +362,18 @@ public class MachineControlsPanel extends JPanel {
             if (machine != null) {
                 machine.removeListener(machineListener);
             }
-
+            
             for (Head head : machine.getHeads()) {
                 for (Nozzle nozzle : head.getNozzles()) {
-                    comboBoxNozzles.addItem(new NozzleItem(nozzle));
+                    comboBoxHeadMountable.addItem(new NozzleItem(nozzle));
+                }
+                
+                for (Camera camera : head.getCameras()){
+                	comboBoxHeadMountable.addItem(new CameraItem(camera));
                 }
             }
-            setSelectedNozzle(((NozzleItem) comboBoxNozzles.getItemAt(0)).getNozzle());
+                        
+            setSelectedTool( ((HeadMountableItem)comboBoxHeadMountable.getItemAt(0)).getItem() );
 
             machine.addListener(machineListener);
 
@@ -402,20 +382,36 @@ public class MachineControlsPanel extends JPanel {
             setEnabled(machine.isEnabled());
 
             for (Head head : machine.getHeads()) {
+            	
                 BeanUtils.addPropertyChangeListener(head, "nozzles", (e) -> {
                     if (e.getOldValue() == null && e.getNewValue() != null) {
                         Nozzle nozzle = (Nozzle) e.getNewValue();
-                        comboBoxNozzles.addItem(new NozzleItem(nozzle));
+                        comboBoxHeadMountable.addItem(new NozzleItem(nozzle));
                     }
                     else if (e.getOldValue() != null && e.getNewValue() == null) {
-                        for (int i = 0; i < comboBoxNozzles.getItemCount(); i++) {
-                            NozzleItem item = (NozzleItem) comboBoxNozzles.getItemAt(i);
+                        for (int i = 0; i < comboBoxHeadMountable.getItemCount(); i++) {
+                            NozzleItem item = (NozzleItem) comboBoxHeadMountable.getItemAt(i);
                             if (item.getNozzle() == e.getOldValue()) {
-                                comboBoxNozzles.removeItemAt(i);
+                                comboBoxHeadMountable.removeItemAt(i);
                             }
                         }
                     }
                 });
+                
+                BeanUtils.addPropertyChangeListener(head, "cameras", (e) -> {
+                    if (e.getOldValue() == null && e.getNewValue() != null) {
+                    	Camera camera = (Camera) e.getNewValue();
+                        comboBoxHeadMountable.addItem(new CameraItem(camera));
+                    }
+                    else if (e.getOldValue() != null && e.getNewValue() == null) {
+                        for (int i = 0; i < comboBoxHeadMountable.getItemCount(); i++) {
+	                        	HeadMountableItem item = (HeadMountableItem) comboBoxHeadMountable.getItemAt(i);
+	                            if (item.getItem() == e.getOldValue()) {
+	                                comboBoxHeadMountable.removeItemAt(i);
+	                            }
+                        	}
+                    }
+                });                
             }
 
         }
