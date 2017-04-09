@@ -291,7 +291,7 @@ public class TVM920Control {
 	private double TicksPerMM_Y = 204.85;
 	private double TicksPerMM_Z = 262.37;
 	private double TicksPerDegree = 17.77 ; // 6400 ticks moves 360 degrees
-	private double zArmLength = 20;         // arm length in mm
+	private double zArmLength = 10;         // arm length in mm
 
 	// This is the max allowed. This applies AFTER we've been homed
 	private double MAX_X = 470;
