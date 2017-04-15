@@ -915,21 +915,29 @@ public class TVM920Control {
 		return result;
 	}
 	
-	// ticks is always assumed to be positive.
+	// ticks is always assumed to be positive. Return value is always negative, as
+	// the computation assumes the first nozzle
 	// Formula is angleRad  = acos( (L - Z)/L where 
 	// L = armLen and Z = desired distance to drop (positive)
 	private double ticksToDistance(int ticks){
+		ticks = (int)Math.abs(ticks);
 		double angleRad = (ticks/TicksPerDegree) * Math.PI / 180;
 		double phi = Math.cos(angleRad);
-		return -(zArmLength * phi - zArmLength);
+		double retVal = (zArmLength * phi - zArmLength);
+		
+		return retVal;
 	}
 	
-	// Distance is assumed to be a negative quantity (reference to Z home)
+	// Distance is assumed to be a negative quantity (reference to Z home). The return
+	// value will always be negative, as the computation assumes nozzle 0.
 	private int distanceToTicks(double distance)
 	{
 		distance = Math.abs(distance);
 		double angleDeg = Math.acos( (zArmLength - distance) / zArmLength) * 180 / Math.PI;
 		int ticks = (int)(Math.round(angleDeg) * TicksPerDegree);
+		
+		double d = ticksToDistance(ticks);
+		
 		return -ticks;
 	}
 	
