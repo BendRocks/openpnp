@@ -318,7 +318,7 @@ public class TVM920Control {
 	private double[] thetaPosCached = new double[HEADCOUNT];
 
 	// Vars used while emulating hardware
-	private boolean emulateHardware = true;  
+	private boolean emulateHardware = false;  
 	private double emulatedX, emulatedY, emulatedTheta;
 
 	//
