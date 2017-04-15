@@ -915,40 +915,30 @@ public class TVM920Control {
 		return result;
 	}
 	
+	// ticks is always assumed to be positive. Return value is always negative, as
+	// the computation assumes the first nozzle
+	// Formula is angleRad  = acos( (L - Z)/L where 
+	// L = armLen and Z = desired distance to drop (positive)
 	private double ticksToDistance(int ticks){
-		double degrees = ticks / TicksPerDegree;
-		double distance;
-	
-		if (degrees <= -90)
-			//distance = zArmLength * Math.sin(degrees / 180 * Math.PI);
-			distance = 2*zArmLength - zArmLength * Math.sin(Math.PI + degrees / 180 * Math.PI);
-		else
-			//distance = 2 * zArmLength - Math.sin(Math.PI - degrees / 180 * Math.PI);
-			distance = zArmLength * Math.sin(degrees / 180 * Math.PI);
+		ticks = (int)Math.abs(ticks);
+		double angleRad = (ticks/TicksPerDegree) * Math.PI / 180;
+		double phi = Math.cos(angleRad);
+		double retVal = (zArmLength * phi - zArmLength);
 		
-		return distance;
+		return retVal;
 	}
 	
-	// Distance is assumed to be a negative quantity (reference to Z home)
+	// Distance is assumed to be a negative quantity (reference to Z home). The return
+	// value will always be negative, as the computation assumes nozzle 0.
 	private int distanceToTicks(double distance)
 	{
-		distance = distance;
-		double degrees;
+		distance = Math.abs(distance);
+		double angleDeg = Math.acos( (zArmLength - distance) / zArmLength) * 180 / Math.PI;
+		int ticks = (int)(Math.round(angleDeg) * TicksPerDegree);
 		
-		if (distance < -zArmLength){
-			degrees = (Math.PI - Math.asin((2*zArmLength + distance)/zArmLength)) / Math.PI * 180;
-			degrees = -degrees;
-		}
-		else{
-			degrees = Math.asin(distance/zArmLength) / Math.PI	* 180;
-		}
+		double d = ticksToDistance(ticks);
 		
-		int ticks = (int)Math.round(degrees * TicksPerDegree);
-
-		// Roundtrip it for accuracy
-		//double debugDistance = ticksToDistance(ticks);
-				
-		return ticks;
+		return -ticks;
 	}
 	
 
