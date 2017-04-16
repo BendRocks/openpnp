@@ -788,7 +788,7 @@ public class TVM920Control {
 		}
 		if (Double.isNaN(theta) == false && head != -1) {
 			isThetaStale[head] = true;
-			thetaInt = (int) Math.round(theta * TicksPerDegree);
+			thetaInt = degreesToTicks(theta);
 			switch (head) {
 			case 0:
 				moveCmd[2] |= 1;
@@ -921,6 +921,22 @@ public class TVM920Control {
 
 		log(String.format("TVM920: GetYPosMM() returned %.3f", result));
 		return result;
+	}
+	
+	// Compute ticks given rotation angle
+	private int degreesToTicks(double degRot){
+		while (degRot < -180)
+			degRot += 360;
+		
+		while (degRot > 180)
+			degRot -= 180;
+		
+		if (degRot == -180)
+			return 3200;
+		
+		return (int)Math.round(degRot * TicksPerDegree);
+		
+		
 	}
 	
 	// ticks is always assumed to be positive. Return value is always negative, as
