@@ -608,7 +608,19 @@ public class TVM920Control {
 		double absZ;
 
 		absZ = z + getZPosMM(head);
-		moveZAbs(head, absZ, speed);
+		if (z <= 0){
+			moveZAbs(head, absZ, speed);
+		}
+		else{
+			absZ = -absZ;
+			
+			if (head == 0) head = 1;
+			if (head == 1) head = 0;
+			if (head == 2) head = 3;
+			if (head == 3) head = 2;
+			
+			moveZAbs(head, absZ, speed);
+		}
 	}
 
 	//
@@ -1105,6 +1117,9 @@ public class TVM920Control {
 
 	private void FindZHome() {
 		log(String.format("TVM920: FindZHome()"));
+		
+		moveZAbs(0, 0, homingSpeed);
+		moveZAbs(2, 0, homingSpeed);
 
 		// Verify we're on the stop
 		GetStatus();
