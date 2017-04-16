@@ -612,14 +612,7 @@ public class TVM920Control {
 			moveZAbs(head, absZ, speed);
 		}
 		else{
-			absZ = -absZ;
-			
-			if (head == 0) head = 1;
-			if (head == 1) head = 0;
-			if (head == 2) head = 3;
-			if (head == 3) head = 2;
-			
-			moveZAbs(head, absZ, speed);
+			moveZAbs(head, 0, speed);
 		}
 	}
 
@@ -640,10 +633,7 @@ public class TVM920Control {
 			return;
 
 		isZAxisMoving = true;
-
-		byte[] moveCmd = new byte[36];
-		moveCmd[0] = 0x0D;
-
+		
 		if (IsHomed) {
 			if (z < MIN_Z)
 				z = MIN_Z;
@@ -651,6 +641,22 @@ public class TVM920Control {
 			if (z > 0)
 				z = 0;
 		}
+		
+		int zInt = distanceToTicks(z);
+		
+		moveZAbsTicks(head, zInt, speed);
+		
+		if (z == 0)
+			isZHome[head] = true;
+		else
+			isZHome[head] = false;
+	}
+	
+	private void moveZAbsTicks(int head, int zInt, double speed) {
+		isZStale[head] = true;
+
+		byte[] moveCmd = new byte[36];
+		moveCmd[0] = 0x0D;
 
 		setSpeed(speed);
 
@@ -660,12 +666,6 @@ public class TVM920Control {
 			moveCmd[2] = 0x10;
 		else if (head == 2 || head == 3)
 			moveCmd[2] = 0x20;
-
-		isZStale[head] = true;
-
-		// Compute move
-		//int zInt = (int) Math.round(z * TicksPerMM_Z);
-		int zInt = distanceToTicks(z);
 
 		if (head == 0) {
 			moveCmd[0x15] = (byte) (zInt >> 0);
@@ -697,11 +697,7 @@ public class TVM920Control {
 
 		isZAxisMoving = false;
 		motionDisable();
-
-		if (z == 0)
-			isZHome[head] = true;
-		else
-			isZHome[head] = false;
+		
 	}
 
 	//
@@ -1120,34 +1116,41 @@ public class TVM920Control {
 		
 		moveZAbs(0, 0, homingSpeed);
 		moveZAbs(2, 0, homingSpeed);
-
+		
 		// Verify we're on the stop
 		GetStatus();
 
 		// Walk off home by lowering nozzle 1 one mm at a time
+		int tickAbs = 0;
 		while (Status.isZ01Home() == true) {
-			moveZRel(0, -1, homingSpeed);
+			tickAbs -= 400;
+			moveZAbsTicks(0, tickAbs, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
 
-		// Walk back on home 0.2 mm at a time
+		// Walk back onto home
 		while (Status.isZ01Home() == false) {
-			moveZRel(0, 0.1, homingSpeed);
+			tickAbs +=40;
+			moveZAbsTicks(0, tickAbs, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
+		
+		tickAbs = 0;
 
 		// Walk off home buy lowering nozzle 4
 		while (Status.isZ23Home() == true) {
-			moveZRel(3, -1, homingSpeed);
+			tickAbs +=400;
+			moveZAbsTicks(3, tickAbs, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
 
-		// Walk back on home
+		// Walk back onto home
 		while (Status.isZ23Home() == false) {
-			moveZRel(3, 0.1, homingSpeed);
+			tickAbs -=40;
+			moveZAbsTicks(0, tickAbs, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
