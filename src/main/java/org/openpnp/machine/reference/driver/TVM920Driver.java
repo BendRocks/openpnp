@@ -189,7 +189,25 @@ public class TVM920Driver implements ReferenceDriver {
 	@Override
 	public Location getLocation(ReferenceHeadMountable hm) {
 		//log(String.format("getLocation()", hm));
-		return getHeadLocation(hm.getHead()).add(hm.getHeadOffsets());
+		
+		double z = 0;
+		if (hm.getName().contains("NZ0")){
+			z = hw.getZPosMM(0);
+		}
+		else if (hm.getName().contains("NZ1")){
+			z = hw.getZPosMM(1);
+		}
+		else if (hm.getName().contains("NZ2")){
+			z = hw.getZPosMM(2);
+		}
+		else if (hm.getName().contains("NZ3")){
+			z = hw.getZPosMM(3);
+		}
+		
+		Location loc = getHeadLocation(hm.getHead()).add(hm.getHeadOffsets());
+		loc = loc.derive(null, null, z, null);
+					
+		return loc;
 	}
 
 	@Override
@@ -330,12 +348,12 @@ public class TVM920Driver implements ReferenceDriver {
 
 			TVM920SlotAutoFeeder.getBanks().get(0).getFeeders().clear();
 
-			for (int i = 1; i < 2; i++) {
+			for (int i = 1; i < 5; i++) {
 				TVM920SlotAutoFeeder frontFeeder = new TVM920SlotAutoFeeder();
 				frontFeeder.setName("F" + String.format("%02d", i)); 
 				frontFeeder.setEnabled(true);
 				frontFeeder.setBank(TVM920SlotAutoFeeder.getBanks().get(0));
-				frontFeeder.setLocation(new Location(LengthUnit.Millimeters, i * 18, 0, -12, 0));
+				frontFeeder.setLocation(new Location(LengthUnit.Millimeters, (i-1) * 16.5 + 11.8, 14.8, -10, 0));
 				rm.addFeeder(frontFeeder);
 
 				TVM920SlotAutoFeeder rearFeeder = new TVM920SlotAutoFeeder();
