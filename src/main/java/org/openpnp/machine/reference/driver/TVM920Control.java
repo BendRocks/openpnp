@@ -1129,7 +1129,7 @@ public class TVM920Control {
 			GetStatus();
 		}
 
-		// Walk back onto home
+		// Walk back onto home 
 		while (Status.isZ01Home() == false) {
 			tickAbs +=40;
 			moveZAbsTicks(0, tickAbs, homingSpeed);
