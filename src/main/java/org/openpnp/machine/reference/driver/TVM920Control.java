@@ -1141,7 +1141,7 @@ public class TVM920Control {
 
 		// Walk off home buy lowering nozzle 4
 		while (Status.isZ23Home() == true) {
-			tickAbs +=400;
+			tickAbs -=400;
 			moveZAbsTicks(3, tickAbs, homingSpeed);
 			sleep(50);
 			GetStatus();
@@ -1149,8 +1149,8 @@ public class TVM920Control {
 
 		// Walk back onto home
 		while (Status.isZ23Home() == false) {
-			tickAbs -=40;
-			moveZAbsTicks(0, tickAbs, homingSpeed);
+			tickAbs +=40;
+			moveZAbsTicks(3, tickAbs, homingSpeed);
 			sleep(50);
 			GetStatus();
 		}
