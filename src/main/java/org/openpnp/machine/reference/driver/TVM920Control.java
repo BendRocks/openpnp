@@ -929,7 +929,7 @@ public class TVM920Control {
 			degRot += 360;
 		
 		while (degRot > 180)
-			degRot -= 180;
+			degRot -= 360;
 		
 		if (degRot == -180)
 			return 3200;
