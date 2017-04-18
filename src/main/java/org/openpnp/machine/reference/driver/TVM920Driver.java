@@ -55,7 +55,12 @@ public class TVM920Driver implements ReferenceDriver {
 	private TVM920Control hw;
 
 	private HashMap<Head, Location> headLocations = new HashMap<>();
-
+	
+	// In the line above, we track the head locations. We can learn the location
+	// of each nozzle by offseting from the head locations. However, we don't know
+	// the heigh of each nozzle. So, that is stored here.
+	private double[] nozzleHeights = new double[4]; 
+	
 	public TVM920Driver() { 
 		try {
 			hw = new TVM920Control();
@@ -74,8 +79,9 @@ public class TVM920Driver implements ReferenceDriver {
 		hw.StopHeartbeat();
 	}
 
+
+	// Look up head location from hashmap
 	protected Location getHeadLocation(Head head) {
-		// Log(String.format("getHeadLocation()", head));
 		Location l = headLocations.get(head);
 		if (l == null) {
 			l = new Location(LengthUnit.Millimeters, 0, 0, 0, 0);
@@ -84,6 +90,7 @@ public class TVM920Driver implements ReferenceDriver {
 		return l;
 	}
 
+	// Save head location 
 	protected void setHeadLocation(Head head, Location l) {
 		log(String.format("setHeadLocation(%s, %s)", head, l));
 		headLocations.put(head, l);
@@ -99,6 +106,7 @@ public class TVM920Driver implements ReferenceDriver {
 		setHeadLocation(head, getHeadLocation(head).derive(hw.getXPosMM(), hw.getYPosMM(), 0.0, 0.0));
 	}
 
+	// 0 = F01, 1 = F2....32 = R01, 33 = R02...
 	public void feederOpen(int feederNumber) {
 		log(String.format("feederOpen(%d)", feederNumber));
 		hw.feederOpen(feederNumber);
@@ -125,11 +133,11 @@ public class TVM920Driver implements ReferenceDriver {
 		// this driver works in natively.
 		location = location.convertToUnits(LengthUnit.Millimeters);
 
-		// Get the current location of the Head that we'll move
+		// Get the current location of the Head that we'll move. This is 
+		// pulled from the hashmap 
 		Location hl = getHeadLocation(hm.getHead());
 		
 		int nozzleIndex = -1;
-		
 		// If a nozzle is involved, we need the head index
 		if (hm.getName().contains("NZ"))
 		{ 
@@ -141,69 +149,35 @@ public class TVM920Driver implements ReferenceDriver {
 		double z = location.getZ();
 		double theta = location.getRotation();
 		
-		if (Double.isNaN(theta) == false)
-		{
-			while (theta < -180){
-				theta += 360;
-			}
-			
-			while (theta >= 180){
-				theta -= 360;
-			}
-		}
-		
 		// Do we need to do a z move?
-		if (Double.isNaN(z) == false && nozzleIndex != -1){
+		if ( (Double.isNaN(z) == false) && (nozzleIndex != -1) ){
+			nozzleHeights[nozzleIndex] = z;
 			hw.moveZAbs(nozzleIndex, z, speed);  
 		}
 		
 		hw.moveXYThetaAbs(x, y, nozzleIndex, theta, speed);
 		
 		log("   MoveTo() complete. Elapsed: " + Duration.between(stopwatch, Instant.now()));
-
-		// Now that movement is complete, update the stored Location to the new
-		// Location, unless the incoming Location specified an axis with a value
-		// of NaN. NaN is interpreted to mean "Don't move this axis" so we don't
-		// update the value, either.
 		
-		// It seems that if we update the axis with the actual location (eg. 23.998mm versus 24mm)
-		// the a lot more moves will be requested later slowing things down considerably. So, 
-		// we update the location
-
-		/*
-		hl = hl.derive( 
-				       Double.isNaN(x) ? null : hw.getXPosMM(), 
-				       Double.isNaN(y) ? null : hw.getYPosMM(), 
-				       Double.isNaN(z) || nozzleIndex == -1 ? null : hw.getZPosMM(nozzleIndex),
-				       Double.isNaN(theta) || nozzleIndex == -1 ? null : hw.getThetaPosDeg(nozzleIndex)
-				      );*/
-		
-        hl = hl.derive(Double.isNaN(location.getX()) ? null : location.getX(),
-                Double.isNaN(location.getY()) ? null : location.getY(),
-                Double.isNaN(location.getZ()) ? null : location.getZ(),
-                Double.isNaN(location.getRotation()) ? null : location.getRotation());
+        hl = hl.derive(	Double.isNaN(location.getX()) ? null : location.getX(),
+                		Double.isNaN(location.getY()) ? null : location.getY(),
+                		Double.isNaN(location.getZ()) ? null : location.getZ(),
+                		Double.isNaN(location.getRotation()) ? null : location.getRotation());
 
 		setHeadLocation(hm.getHead(), hl);
 	}
 
 	@Override
 	public Location getLocation(ReferenceHeadMountable hm) {
-		//log(String.format("getLocation()", hm));
-		
+		int nozzleIndex = -1;
 		double z = 0;
-		if (hm.getName().contains("NZ0")){
-			z = hw.getZPosMM(0);
-		}
-		else if (hm.getName().contains("NZ1")){
-			z = hw.getZPosMM(1);
-		}
-		else if (hm.getName().contains("NZ2")){
-			z = hw.getZPosMM(2);
-		}
-		else if (hm.getName().contains("NZ3")){
-			z = hw.getZPosMM(3);
-		}
 		
+		if (hm.getName().contains("NZ"))
+		{ 
+			nozzleIndex = Character.getNumericValue(hm.getName().charAt(2));
+			z = nozzleHeights[nozzleIndex];
+		}
+				
 		Location loc = getHeadLocation(hm.getHead()).add(hm.getHeadOffsets());
 		loc = loc.derive(null, null, z, null);
 					
@@ -295,19 +269,19 @@ public class TVM920Driver implements ReferenceDriver {
 
 				switch (i) {
 				case 0:
-					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -38.8, -59.8, 0, 0));
 					break;
 
 				case 1:
-					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -38.8 + 25.6, -59.8, 0, 0));
 					break;
 
 				case 2:
-					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -10, -10, 0, 0));
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -38.8 + 50.2, -59.8, 0, 0));
 					break;
 
 				case 3:
-					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -20, -10, 0, 0));
+					rn.setHeadOffsets(new Location(LengthUnit.Millimeters, -38.8 + 75.5, -59.8, 0, 0));
 					break;
 				}
 				

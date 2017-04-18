@@ -511,8 +511,9 @@ public class TVM920Control {
 	}
 
 	//
-	// Opens specified feeder. Feeder is zero based. 0..27 indicates
-	// front feeder, 32..59 = rear feeders
+	// Opens specified feeder. Feeder is zero-based. 
+	// 0..27 is front feeder, with 0 = F01, 1 = F02, etc
+	// 32..59 is rear feeder, with 32 = R01, 33 = R02, etc
 	//
 	public void feederOpen(int feederNumber) {
 		byte[] data = new byte[12];
