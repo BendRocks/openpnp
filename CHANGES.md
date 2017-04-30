@@ -1,6 +1,66 @@
 This file lists major or notable changes to OpenPnP in chronological order. This is not
 a complete change list, only those that may directly interest or affect users.
 
+# 2017-04-16
+
+* Script Directory Ignore
+
+	You can now add an empty .ignore file to any directory under the scripts directory to
+	have that directory be ignored when populating the Scripts menu. This is in support of
+	a feature by @cri-s to improve usability on production machines.
+	
+	More information at https://github.com/openpnp/openpnp/pull/521.
+	
+* Home Status
+	
+	The "Power On" button now turns yellow when you first enable the machine, and does not
+	turn green until the machine is homed. This helps you notice that you have not yet homed
+	the machine. Thanks to @ldpgh for this helpful feature!
+	
+	More information at https://github.com/openpnp/openpnp/issues/379.
+	
+* Python Script Examples Added
+
+	@ldpgh has added some helpful Python examples to the suite of built in Scripting
+	examples.
+
+	More information at https://github.com/openpnp/openpnp/pull/520.
+	
+# 2017-04-14
+
+* Navigation View Removed
+
+	The Navigation View has been removed as part of a cleanup effort. This feature was unfinished
+	and is unlikely to ever be finished in this iteration of the UI. Removing it improves startup
+	time, removes a dependency on JavaFX and solves some bugs.
+	
+	If you were using this feature and will miss it, please make it known on the mailing list
+	at http://groups.google.com/group/openpnp.
+	
+# 2017-04-13
+
+* BREAKING CHANGE: Outdated Drivers Removed
+
+	Several outdated drivers have been removed. These are: GrblDriver, MarlinDriver, SprinterDriver
+	TinygDriver. All of these drivers have been replaced with the much better supported
+	GcodeDriver. If you are currently using one of these drivers this version WILL BREAK your
+	configuration. If you need help migrating, please post a question to the mailing list at:
+	
+	http://groups.google.com/group/openpnp
+	
+	More information about this change and the reasoning for it is available at:
+	
+	https://github.com/openpnp/openpnp/issues/415
+	
+
+# 2017-04-09
+
+* Filter Rotated Rects CvStage
+
+	A new pipeline stage called FilterRects has been added by @dzach. It allows you to filter
+	rotated rects based on given width, length and aspect ratio limits. This can be very helpful
+	for making sure a recognized part is within acceptable size limits.
+
 # 2017-04-06
 
 * Tool Selection for Cameras
