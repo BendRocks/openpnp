@@ -1177,6 +1177,12 @@ public class TVM920Control {
 			sleep(50);
 			GetStatus();
 		}
+		
+		// The mechanics of the hardware are such that when home is found, there's
+		// a bit of an angle built in--iow the arm isn't at 0 degrees. Before we zero, we 
+		// need to erase that bias 
+		moveZAbsTicks(0, 100, homingSpeed);
+		moveZAbsTicks(3, 100, homingSpeed);
 
 		setZ1234PosZero();
 	}
@@ -1188,7 +1194,6 @@ public class TVM920Control {
 		findXHome();
 		// setXYPosMM(465, 444);
 		setXYPosMM(MAX_X - 5, MAX_Y - 5);
-
 	}
 
 	public void findHome() throws Exception {
@@ -1390,6 +1395,9 @@ public class TVM920Control {
 
 			sendReceiveUDP(new byte[] { 0x17, 00, 00, 00, 80, 00, 00, 00 });
 			sleep(sleepTime);
+			
+			upLightOn(false);
+			downLightOn(true);
 		} catch (Exception ex) {
 
 		}

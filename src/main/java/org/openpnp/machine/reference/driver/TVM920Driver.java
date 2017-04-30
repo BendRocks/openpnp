@@ -64,19 +64,7 @@ public class TVM920Driver implements ReferenceDriver {
 	public TVM920Driver() { 
 		try {
 			hw = new TVM920Control();
-			hw.Init();
-			
-			// For debug only. BUGBUG: Kill the loop below
-			for (int i=0; i<10; i++)
-			{
-			
-				long time = System.currentTimeMillis();
-				Thread.sleep(2);
-				
-				log("Time: " + String.valueOf(System.currentTimeMillis() - time));
-			}
-			
-			
+			hw.Init();			
 		} catch (Exception ex) {
 
 		}
