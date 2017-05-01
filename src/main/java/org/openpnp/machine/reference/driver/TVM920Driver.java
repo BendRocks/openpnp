@@ -64,7 +64,7 @@ public class TVM920Driver implements ReferenceDriver {
 	public TVM920Driver() { 
 		try {
 			hw = new TVM920Control();
-			hw.Init();
+			hw.Init();			
 		} catch (Exception ex) {
 
 		}

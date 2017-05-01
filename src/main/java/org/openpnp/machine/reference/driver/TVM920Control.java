@@ -940,28 +940,34 @@ public class TVM920Control {
 		
 	}
 	
-	// ticks is always assumed to be positive. Return value is always negative, as
-	// the computation assumes the first nozzle
-	// Formula is angleRad  = acos( (L - Z)/L where 
-	// L = armLen and Z = desired distance to drop (positive)
+	//
+	// Ticks may be positive or negative. Return value will always be negative
+	// 
+	// Formula is 
+	//      angleRad  = acos( (L - Z)/L) 
+    //	                 OR
+	//             z = L * (cos(thetaRad)-1)
+	// Where:
+	// 		L = armLen and Z = desired distance to drop
+	//
 	private double ticksToDistance(int ticks){
 		ticks = (int)Math.abs(ticks);
 		double angleRad = (ticks/TicksPerDegree) * Math.PI / 180;
-		double phi = Math.cos(angleRad);
-		double retVal = (zArmLength * phi - zArmLength);
+		double retVal = zArmLength * (Math.cos(angleRad) - 1);
 		
 		return retVal;
 	}
 	
-	// Distance is assumed to be a negative quantity (reference to Z home). The return
-	// value will always be negative, as the computation assumes nozzle 0.
+	// Distance is always assumed to be negative (dropping the head below parked location). 
+	// The returned value will always be negative, which can be directly applied
+	// to first and third nozzle. For second and 4th nozzle, the returned value must be
+	// inverted.
+	//
 	private int distanceToTicks(double distance)
 	{
 		distance = Math.abs(distance);
 		double angleDeg = Math.acos( (zArmLength - distance) / zArmLength) * 180 / Math.PI;
 		int ticks = (int)(Math.round(angleDeg) * TicksPerDegree);
-		
-		double d = ticksToDistance(ticks);
 		
 		return -ticks;
 	}
@@ -1171,6 +1177,12 @@ public class TVM920Control {
 			sleep(50);
 			GetStatus();
 		}
+		
+		// The mechanics of the hardware are such that when home is found, there's
+		// a bit of an angle built in--iow the arm isn't at 0 degrees. Before we zero, we 
+		// need to erase that bias 
+		moveZAbsTicks(0, 100, homingSpeed);
+		moveZAbsTicks(3, 100, homingSpeed);
 
 		setZ1234PosZero();
 	}
@@ -1182,7 +1194,6 @@ public class TVM920Control {
 		findXHome();
 		// setXYPosMM(465, 444);
 		setXYPosMM(MAX_X - 5, MAX_Y - 5);
-
 	}
 
 	public void findHome() throws Exception {
@@ -1390,6 +1401,9 @@ public class TVM920Control {
 
 			sendReceiveUDP(new byte[] { 0x17, 00, 00, 00, 80, 00, 00, 00 });
 			sleep(sleepTime);
+			
+			upLightOn(false);
+			downLightOn(true);
 		} catch (Exception ex) {
 
 		}
