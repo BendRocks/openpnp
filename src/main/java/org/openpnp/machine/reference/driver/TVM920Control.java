@@ -643,7 +643,8 @@ public class TVM920Control {
 				z = 0;
 		}
 		
-		int zInt = distanceToTicks(z);
+		// z==0 is special case. Always want head to return home
+		int zInt =  z == 0 ? 0 : distanceToTicks(z);
 		
 		moveZAbsTicks(head, zInt, speed);
 		
@@ -1181,8 +1182,8 @@ public class TVM920Control {
 		// The mechanics of the hardware are such that when home is found, there's
 		// a bit of an angle built in--iow the arm isn't at 0 degrees. Before we zero, we 
 		// need to erase that bias 
-		moveZAbsTicks(0, 100, homingSpeed);
-		moveZAbsTicks(3, 100, homingSpeed);
+		moveZAbsTicks(0, 150, homingSpeed);
+		moveZAbsTicks(3, 150, homingSpeed);
 
 		setZ1234PosZero();
 	}
