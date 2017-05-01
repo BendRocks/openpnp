@@ -1428,8 +1428,13 @@ public class TVM920Control {
 			sendReceiveUDP(new byte[] { 0x17, 00, 00, 00, 80, 00, 00, 00 });
 			sleep(sleepTime);
 			
+			// Lighting defaults
 			upLightOn(false);
 			downLightOn(true);
+			
+			// All air turned off
+			pickCloseAll();
+			feedersCloseAll();
 		} catch (Exception ex) {
 
 		}
