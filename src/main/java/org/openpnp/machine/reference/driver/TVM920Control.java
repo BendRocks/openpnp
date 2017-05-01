@@ -643,8 +643,7 @@ public class TVM920Control {
 				z = 0;
 		}
 		
-		// z==0 is special case. Always want head to return home
-		int zInt =  z == 0 ? 0 : distanceToTicks(z);
+		int zInt =  distanceToTicks(z);
 		
 		moveZAbsTicks(head, zInt, speed);
 		
@@ -653,6 +652,13 @@ public class TVM920Control {
 		else
 			isZHome[head] = false;
 	}
+	
+	private void moveZRelTicks(int head, int zInt, double speed){
+		int absZ = zInt + getZPosTicks(head);
+		
+		moveZAbsTicks(head, absZ, speed);
+	}
+	
 	
 	private void moveZAbsTicks(int head, int zInt, double speed) {
 		isZStale[head] = true;
@@ -965,12 +971,31 @@ public class TVM920Control {
 	// inverted.
 	//
 	private int distanceToTicks(double distance)
-	{
+	{		
 		distance = Math.abs(distance);
 		double angleDeg = Math.acos( (zArmLength - distance) / zArmLength) * 180 / Math.PI;
 		int ticks = (int)(Math.round(angleDeg) * TicksPerDegree);
 		
 		return -ticks;
+	}
+	
+	//
+	// Returns z position in ticks
+	//
+	public int getZPosTicks(int head){
+		int ticks = 0;
+		
+		if (head < 0 || head > 3)
+			throw new IllegalArgumentException("TVM920Control:getZPosMM() Bad head index");
+
+		GetStatus();
+		if (head == 0 || head == 1)
+			ticks = Status.getZ01Ticks() * (head == 1 ? -1 : 1);
+		else
+			ticks = Status.getZ23Ticks() * (head == 3 ? -1 : 1);
+
+		log(String.format("TVM920: GetZPosTicks() returned %d", ticks));
+		return ticks;		
 	}
 	
 
@@ -1180,10 +1205,10 @@ public class TVM920Control {
 		}
 		
 		// The mechanics of the hardware are such that when home is found, there's
-		// a bit of an angle built in--iow the arm isn't at 0 degrees. Before we zero, we 
+		// a bit of an angle built in--IOW the arm isn't at 0 degrees. Before we zero, we 
 		// need to erase that bias 
-		moveZAbsTicks(0, 150, homingSpeed);
-		moveZAbsTicks(3, 150, homingSpeed);
+		moveZRelTicks(0, 150, homingSpeed);
+		moveZRelTicks(3, 150, homingSpeed);
 
 		setZ1234PosZero();
 	}
