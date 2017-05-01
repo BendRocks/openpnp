@@ -56,7 +56,7 @@ public class TVM920SlotAutoFeeder extends ReferenceSlotAutoFeeder {
 			
 			if (lastFeederIndex != -1){
 				drv.feedersCloseAll();
-				Thread.sleep(40);
+				Thread.sleep(1000);
 			}
 			
 			drv.feederOpen(feederIndex);
@@ -74,6 +74,7 @@ public class TVM920SlotAutoFeeder extends ReferenceSlotAutoFeeder {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 		TVM920Driver drv = (TVM920Driver) rm.getDriver();
 		drv.feedersCloseAll();
+		Thread.sleep(250);
 		lastFeederIndex = -1;
 	}
 
