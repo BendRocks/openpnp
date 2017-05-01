@@ -1304,24 +1304,30 @@ public class TVM920Control {
 	}
 
 	void EndStopEnableX(boolean enable) {
+		return;
+		/*
 		if (enable)
 			WriteRegister(0x1f6, 0);
 		else
-			WriteRegister(0x1f6, 0x01000000);
+			WriteRegister(0x1f6, 0x01000000);*/
 	}
 
 	void EndStopEnableY(boolean enable) {
+		return;
+		/*
 		if (enable)
 			WriteRegister(0x1f5, 0);
 		else
-			WriteRegister(0x1f5, 0x01000000);
+			WriteRegister(0x1f5, 0x01000000);*/
 	}
 
 	void EndStopEnableZ(boolean enable) {
+		return;
+		/*
 		if (enable)
 			WriteRegister(0x1f4, 0);
 		else
-			WriteRegister(0x1f4, 0x01000000);
+			WriteRegister(0x1f4, 0x01000000);*/
 	}
 
 	void EndStopEnableAll(boolean enable) {
