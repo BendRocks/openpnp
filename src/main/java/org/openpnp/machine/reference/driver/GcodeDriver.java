@@ -28,6 +28,7 @@ import org.openpnp.machine.reference.ReferenceHeadMountable;
 import org.openpnp.machine.reference.ReferenceMachine;
 import org.openpnp.machine.reference.ReferenceNozzle;
 import org.openpnp.machine.reference.ReferenceNozzleTip;
+import org.openpnp.machine.reference.ReferencePasteDispenser;
 import org.openpnp.machine.reference.driver.wizards.GcodeDriverConsole;
 import org.openpnp.machine.reference.driver.wizards.GcodeDriverGcodes;
 import org.openpnp.machine.reference.driver.wizards.GcodeDriverSettings;
@@ -72,7 +73,10 @@ public class GcodeDriver extends AbstractSerialPortDriver implements Runnable {
         VACUUM_REQUEST_COMMAND(true, "VacuumLevelPartOn", "VacuumLevelPartOff"),
         VACUUM_REPORT_REGEX(true),
         ACTUATOR_READ_COMMAND(true, "Id", "Name", "Index"),
-        ACTUATOR_READ_REGEX(true);
+        ACTUATOR_READ_REGEX(true),
+        PRE_DISPENSE_COMMAND(false, "DispenseTime"),
+        DISPENSE_COMMAND(false, "DispenseTime"),
+        POST_DISPENSE_COMMAND(false, "DispenseTime");
 
         final boolean headMountable;
         final String[] variableNames;
@@ -245,6 +249,29 @@ public class GcodeDriver extends AbstractSerialPortDriver implements Runnable {
         for (ReferenceDriver driver : subDrivers) {
             driver.setEnabled(enabled);
         }
+    }
+
+    @Override
+    public void dispense(ReferencePasteDispenser dispenser,Location startLocation,Location endLocation,long dispenseTimeMilliseconds) throws Exception {
+        Logger.debug("dispense({}, {}, {}, {})", new Object[] {dispenser, startLocation, endLocation, dispenseTimeMilliseconds});
+
+        String command = getCommand(null, CommandType.PRE_DISPENSE_COMMAND);
+        command = substituteVariable(command, "DispenseTime", dispenseTimeMilliseconds);
+
+        sendGcode(command);
+
+        for (ReferenceDriver driver: subDrivers )
+        {
+            driver.dispense(dispenser,startLocation,endLocation,dispenseTimeMilliseconds);
+        }
+
+        command = getCommand(null, CommandType.DISPENSE_COMMAND);
+        command = substituteVariable(command, "DispenseTime", dispenseTimeMilliseconds);
+        sendGcode(command);
+
+        command = getCommand(null, CommandType.POST_DISPENSE_COMMAND);
+        command = substituteVariable(command, "DispenseTime", dispenseTimeMilliseconds);
+        sendGcode(command);
     }
 
     @Override
@@ -819,8 +846,8 @@ public class GcodeDriver extends AbstractSerialPortDriver implements Runnable {
         // Read any additional responses that came in after the initial one.
         responseQueue.drainTo(responses);
 
-        Logger.debug("sendCommand({}, {}) => {}",
-                new Object[] {command, timeout == Long.MAX_VALUE ? -1 : timeout, responses});
+        Logger.debug("sendCommand({} {}, {}) => {}",
+                new Object[] {portName, command, timeout == Long.MAX_VALUE ? -1 : timeout, responses});
         return responses;
     }
 

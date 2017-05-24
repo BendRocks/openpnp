@@ -54,6 +54,7 @@ import org.openpnp.util.Collect;
 import org.openpnp.util.FiniteStateMachine;
 import org.openpnp.util.MovableUtils;
 import org.openpnp.util.Utils2D;
+import org.openpnp.util.VisionUtils;
 import org.pmw.tinylog.Logger;
 import org.simpleframework.xml.Attribute;
 import org.simpleframework.xml.Root;
@@ -320,6 +321,11 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
         head.moveToSafeZ();
         // Discard any currently picked parts
         discardAll(head);
+        
+        HashMap<String, Object> params = new HashMap<>();
+        params.put("job", job);
+        params.put("jobProcessor", this);
+        Configuration.get().getScripting().on("Job.Starting", params);
     }
 
     protected void doFiducialCheck() throws Exception {
@@ -610,10 +616,22 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
             Placement placement = jobPlacement.placement;
             Part part = placement.getPart();
             fireTextStatus("Aligning %s for %s.", part.getId(), placement.getId());
-            PartAlignment.PartAlignmentOffset alignmentOffset = machine.getPartAlignment().findOffsets(part, jobPlacement.boardLocation, placement.getLocation(), nozzle);
-            plannedPlacement.alignmentOffsets = alignmentOffset;
 
-            Logger.debug("Align {} with {}", part, nozzle);
+            PartAlignment partAlignment = findPartAligner(machine, part);
+
+            if(partAlignment!=null) {
+                plannedPlacement.alignmentOffsets = VisionUtils.findPartAlignmentOffsets(
+                        partAlignment,
+                        part,
+                        jobPlacement.boardLocation,
+                        placement.getLocation(), nozzle);
+                Logger.debug("Align {} with {}", part, nozzle);
+            }
+            else
+            {
+                plannedPlacement.alignmentOffsets=null;
+                Logger.debug("Not aligning {} as no compatible enabled aligners defined",part);
+            }
 
             plannedPlacement.stepComplete = true;
         }
@@ -738,6 +756,11 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
         DecimalFormat df = new DecimalFormat("###,###.0");
         
         Logger.info("Job finished {} parts in {} sec. This is {} pph", totalPartsPlaced, df.format(dtSec), df.format(totalPartsPlaced / (dtSec / 3600.0)));
+        
+        HashMap<String, Object> params = new HashMap<>();
+        params.put("job", job);
+        params.put("jobProcessor", this);
+        Configuration.get().getScripting().on("Job.Finished", params);
     }
 
     protected void doReset() throws Exception {
