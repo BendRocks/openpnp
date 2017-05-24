@@ -43,7 +43,7 @@ public class TVM920Control {
 
 		static private boolean arraysAreSame(byte[] array1, byte[] array2) {
 			if (array1 == null || array2 == null)
-				return true;
+				return false;
 
 			if (array1.length != array2.length)
 				return false;
@@ -54,7 +54,6 @@ public class TVM920Control {
 			}
 
 			return true;
-
 		}
 
 		//
@@ -69,7 +68,6 @@ public class TVM920Control {
 			}
 
 			lastStatusMessage = newMsg;
-			// LastStatusTime = LocalDateTime.now();
 		}
 
 		//
@@ -326,7 +324,7 @@ public class TVM920Control {
 	//
 	public TVM920Control() throws Exception {
 		Socket = new DatagramSocket(8701);
-		Socket.setSoTimeout(100);
+		Socket.setSoTimeout(250);
 
 		isXStale = true;
 		isYStale = true;
@@ -371,7 +369,7 @@ public class TVM920Control {
 	// TVM920 control board has time to respond
 	//
 	private byte[] sendReceiveUDP(byte[] data) {
-		byte[] rxData;
+		byte[] rxData = new byte[0];
 
 		try {
 			NetLock.lock();
@@ -380,6 +378,8 @@ public class TVM920Control {
 			rxData = receiveUDP();
 
 			sleep(3);
+		} catch (Exception e){
+			Logger.debug("TVM920: sendReceiveUDP UDP exception: " + e.toString());
 		} finally {
 			NetLock.unlock();
 		}
