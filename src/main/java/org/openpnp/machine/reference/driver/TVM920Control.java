@@ -275,7 +275,7 @@ public class TVM920Control {
 	} // End of static class to help with status
 
 	// Location of hardware fiducial pin
-	protected Location homingFiducialLocation = new Location(LengthUnit.Millimeters, 324, 112, 0, 0);
+	protected Location homingFiducialLocation = new Location(LengthUnit.Millimeters, 230.219, 133.119, 0, 0);
 
 	private DatagramSocket Socket;
 	private Lock NetLock = new ReentrantLock();
@@ -301,6 +301,8 @@ public class TVM920Control {
 	private double homingSpeed = 0.4;
 
 	private final int HEADCOUNT = 4;
+	
+	private final int SOCKETTIMEOUT = 200;
 
 	private boolean isZAxisMoving = false;
 	private boolean isXYThetaMoving = false;
@@ -324,12 +326,12 @@ public class TVM920Control {
 	//
 	public TVM920Control() throws Exception {
 		Socket = new DatagramSocket(8701);
-		Socket.setSoTimeout(250);
+		Socket.setSoTimeout(SOCKETTIMEOUT);
 
 		isXStale = true;
 		isYStale = true;
 
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < HEADCOUNT; i++) {
 			isZStale[i] = true;
 			isThetaStale[i] = true;
 		}
@@ -374,6 +376,7 @@ public class TVM920Control {
 		try {
 			NetLock.lock();
 
+			
 			sendUDP(data);
 			rxData = receiveUDP();
 
@@ -395,9 +398,33 @@ public class TVM920Control {
 	private void sendUDP(byte[] data) {
 		try {
 			DatagramPacket txPacket = new DatagramPacket(data, data.length, InetAddress.getByName("192.168.0.8"), 8701);
+			flushIncoming();
 			Socket.send(txPacket);
 		} catch (Exception e) {
 			Logger.debug("TVM920: Send UDP exception: " + e.toString());
+		}
+	}
+	
+	private void flushIncoming()
+	{
+		try {
+			    Socket.setSoTimeout(1);
+				while (true)
+				{
+					byte[] buffer = new byte[1024];
+					DatagramPacket rxPacket = new DatagramPacket(buffer, buffer.length);
+					Socket.receive(rxPacket);
+				}
+		} catch (Exception e) {
+
+		}
+		finally{
+			try{
+				Socket.setSoTimeout(SOCKETTIMEOUT);
+			}
+			catch (Exception e){
+				
+			}	
 		}
 	}
 
@@ -418,7 +445,6 @@ public class TVM920Control {
 			byte[] buffer = new byte[1024];
 			DatagramPacket rxPacket = new DatagramPacket(buffer, buffer.length);
 			Socket.receive(rxPacket);
-			// byte[] rxData = rxPacket.getData();
 			byte[] rxData = Arrays.copyOf(rxPacket.getData(), rxPacket.getLength());
 
 			if (rxData[0] == 0) {
@@ -503,8 +529,7 @@ public class TVM920Control {
 
 	//
 	// Asks for status, and also handles the processing of status. The roundtrip
-	// time on this is a mS
-	// or two under windows
+	// time on this is a mS or two under windows
 	//
 	private void GetStatus() {
 		sendReceiveUDP(new byte[] { 0, 0, 0, 0 });
@@ -853,7 +878,7 @@ public class TVM920Control {
 
 		GetStatus();
 
-		while (Status.isXYStopped() == false) {
+		while ( (Status.isXYStopped() == false) || (Status.isThetaStopped() == false) ) {
 			sleep(10);
 			GetStatus();
 
