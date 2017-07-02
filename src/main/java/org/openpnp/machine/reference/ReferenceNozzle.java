@@ -275,21 +275,26 @@ public class ReferenceNozzle extends AbstractNozzle implements ReferenceHeadMoun
         ReferenceNozzleTip nt = (ReferenceNozzleTip) nozzleTip;
 
         if (changerEnabled) {
-        unloadNozzleTip();
-        Logger.debug("{}.loadNozzleTip({}): Start", getName(), nozzleTip.getName());
+            double speed = getHead().getMachine().getSpeed();
+            
+            unloadNozzleTip();
+            Logger.debug("{}.loadNozzleTip({}): Start", getName(), nozzleTip.getName());
 
             Logger.debug("{}.loadNozzleTip({}): moveTo Start Location",
                     new Object[] {getName(), nozzleTip.getName()});
-        MovableUtils.moveToLocationAtSafeZ(this, nt.getChangerStartLocation());
+            MovableUtils.moveToLocationAtSafeZ(this, nt.getChangerStartLocation(), nt.getChangerStartSpeed() * speed);
 
-		Logger.debug("{}.loadNozzleTip({}): moveTo Mid Location", new Object[] { getName(), nozzleTip.getName() });
-        moveTo(nt.getChangerMidLocation(), getHead().getMachine().getSpeed() * 0.25);
+            Logger.debug("{}.loadNozzleTip({}): moveTo Mid Location",
+                    new Object[] {getName(), nozzleTip.getName()});
+            moveTo(nt.getChangerMidLocation(), nt.getChangerMidSpeed() * speed * 0.25);
 
-		Logger.debug("{}.loadNozzleTip({}): moveTo Mid Location 2", new Object[] { getName(), nozzleTip.getName() });
-        moveTo(nt.getChangerMidLocation2(), getHead().getMachine().getSpeed());
+            Logger.debug("{}.loadNozzleTip({}): moveTo Mid Location 2",
+                    new Object[] {getName(), nozzleTip.getName()});
+            moveTo(nt.getChangerMidLocation2(), nt.getChangerMidSpeed2() * speed);
 
-		Logger.debug("{}.loadNozzleTip({}): moveTo End Location", new Object[] { getName(), nozzleTip.getName() });
-        moveTo(nt.getChangerEndLocation(), getHead().getMachine().getSpeed());
+            Logger.debug("{}.loadNozzleTip({}): moveTo End Location",
+                    new Object[] {getName(), nozzleTip.getName()});
+            moveTo(nt.getChangerEndLocation(), nt.getChangerEndSpeed() * speed);
         moveToSafeZ(getHead().getMachine().getSpeed());
 
             Logger.debug("{}.loadNozzleTip({}): Finished",
@@ -310,23 +315,25 @@ public class ReferenceNozzle extends AbstractNozzle implements ReferenceHeadMoun
 		}
         
         if (changerEnabled) {
-        Logger.debug("{}.unloadNozzleTip(): Start", getName());
-        ReferenceNozzleTip nt = (ReferenceNozzleTip) nozzleTip;
+            double speed = getHead().getMachine().getSpeed();
+            
+            Logger.debug("{}.unloadNozzleTip(): Start", getName());
+            ReferenceNozzleTip nt = (ReferenceNozzleTip) nozzleTip;
 
-        Logger.debug("{}.unloadNozzleTip(): moveTo End Location", getName());
-        MovableUtils.moveToLocationAtSafeZ(this, nt.getChangerEndLocation());
+            Logger.debug("{}.unloadNozzleTip(): moveTo End Location", getName());
+            MovableUtils.moveToLocationAtSafeZ(this, nt.getChangerEndLocation(), nt.getChangerEndSpeed() * speed);
 
-        Logger.debug("{}.unloadNozzleTip(): moveTo Mid Location 2", getName());
-        moveTo(nt.getChangerMidLocation2(), getHead().getMachine().getSpeed());
+            Logger.debug("{}.unloadNozzleTip(): moveTo Mid Location 2", getName());
+            moveTo(nt.getChangerMidLocation2(), nt.getChangerMidSpeed2() * speed);
 
-        Logger.debug("{}.unloadNozzleTip(): moveTo Mid Location", getName());
-        moveTo(nt.getChangerMidLocation(), getHead().getMachine().getSpeed());
+            Logger.debug("{}.unloadNozzleTip(): moveTo Mid Location", getName());
+            moveTo(nt.getChangerMidLocation(), nt.getChangerMidSpeed() * speed);
 
-        Logger.debug("{}.unloadNozzleTip(): moveTo Start Location", getName());
-        moveTo(nt.getChangerStartLocation(), getHead().getMachine().getSpeed() * 0.25);
-        moveToSafeZ(getHead().getMachine().getSpeed());
+            Logger.debug("{}.unloadNozzleTip(): moveTo Start Location", getName());
+            moveTo(nt.getChangerStartLocation(), nt.getChangerStartSpeed() * speed * 0.25);
+            moveToSafeZ(getHead().getMachine().getSpeed());
 
-        Logger.debug("{}.unloadNozzleTip(): Finished", getName());
+            Logger.debug("{}.unloadNozzleTip(): Finished", getName());
         }
         
 		nozzleTip = null;
