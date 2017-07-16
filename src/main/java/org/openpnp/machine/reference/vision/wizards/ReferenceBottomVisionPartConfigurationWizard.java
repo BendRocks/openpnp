@@ -38,6 +38,7 @@ public class ReferenceBottomVisionPartConfigurationWizard extends AbstractConfig
     private final PartSettings partSettings;
 
     private JCheckBox enabledCheckbox;
+    private JCheckBox manualAlignCheckbox;
     private JCheckBox chckbxCenterAfterTest;
 
     public ReferenceBottomVisionPartConfigurationWizard(ReferenceBottomVision bottomVision,
@@ -55,6 +56,7 @@ public class ReferenceBottomVisionPartConfigurationWizard extends AbstractConfig
                         FormSpecs.RELATED_GAP_COLSPEC, FormSpecs.DEFAULT_COLSPEC,
                         FormSpecs.RELATED_GAP_COLSPEC, FormSpecs.DEFAULT_COLSPEC,},
                 new RowSpec[] {FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,
+                        FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,
                         FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,
                         FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,}));
 
@@ -106,6 +108,12 @@ public class ReferenceBottomVisionPartConfigurationWizard extends AbstractConfig
             }
         });
         panel.add(btnLoadDefault, "6, 6");
+        
+        JLabel lblManualAlign = new JLabel("Manual Align?");
+        panel.add(lblManualAlign, "2, 8");
+
+        manualAlignCheckbox = new JCheckBox("");
+        panel.add(manualAlignCheckbox, "4, 8");        
     }
 
     private void testAlignment() throws Exception {
@@ -201,5 +209,6 @@ public class ReferenceBottomVisionPartConfigurationWizard extends AbstractConfig
     @Override
     public void createBindings() {
         addWrappedBinding(partSettings, "enabled", enabledCheckbox, "selected");
+        addWrappedBinding(partSettings, "manualAlign", manualAlignCheckbox, "selected");
     }
 }
