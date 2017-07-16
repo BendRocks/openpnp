@@ -795,7 +795,7 @@ public class TVM920Control {
 		
 		// Check if uplooking camera is needed
 		if (IsHomed && (Double.isNaN(x)== false) && (Double.isNaN(y) == false) &&
-				(x > 170) && (x < 270) && (y > 150 && y < 160) )
+				(x > 180) && (x < 275) && (y > 150 && y < 160) )
 		{
 			upLightOn(true);
 		}
