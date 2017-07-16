@@ -132,7 +132,7 @@ public class TVM920Driver implements ReferenceDriver {
 		// Convert the Location to millimeters, since that's the unit that
 		// this driver works in natively.
 		location = location.convertToUnits(LengthUnit.Millimeters);
-
+		
 		// Get the current location of the Head that we'll move. This is 
 		// pulled from the hashmap 
 		Location hl = getHeadLocation(hm.getHead());

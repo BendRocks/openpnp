@@ -792,6 +792,19 @@ public class TVM920Control {
 							"TVM920Control:MoveXYThetaAbs Bad head index: " + Integer.toString(head));
 			}
 		}
+		
+		// Check if uplooking camera is needed
+		if (IsHomed && (Double.isNaN(x)== false) && (Double.isNaN(y) == false) &&
+				(x > 170) && (x < 270) && (y > 150 && y < 160) )
+		{
+			upLightOn(true);
+		}
+		else
+		{
+			downLightOn(true);
+		}
+			
+				
 
 		// Not sure what this does...but it's there every time in WireShark.
 		// BUGBUG: See if
