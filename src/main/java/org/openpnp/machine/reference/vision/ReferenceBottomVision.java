@@ -50,6 +50,8 @@ public class ReferenceBottomVision implements PartAlignment {
 
     @ElementMap(required = false)
     protected Map<String, PartSettings> partSettingsByPartId = new HashMap<>();
+    
+    boolean manualAlignInProcess = false;;
 
     private double angleNorm(double val, double lim) {
         double clip = lim * 2;
@@ -74,6 +76,28 @@ public class ReferenceBottomVision implements PartAlignment {
         }
 
         Camera camera = VisionUtils.getBottomVisionCamera();
+        
+        // check if user wants to manually align part
+        if (partSettings.isManualAlign())
+        {
+        	if (manualAlignInProcess == false)
+        	{
+        		// Let user align. Move and pre-rotate to bottom vision camera. At this point, there is no 
+        		// PCB rotation taken into account. 
+	        	manualAlignInProcess = true;
+	        	MovableUtils.moveToLocationAtSafeZ(nozzle, camera.getLocation().derive(null, null, null, placementLocation.getRotation()));
+	        	throw new Exception("Manual alignment has been specified for this part. It has been rotated to its indicated rotation. You can pause the job and fine-tune the alignment, and then resume the job once aligned.");
+        	}
+        	else
+        	{
+        		// User has aligned. We just need to tweak for PCB alignment
+        		manualAlignInProcess = false;
+        		double pcbRotation = Utils2D.calculateBoardPlacementLocation(boardLocation, placementLocation).getRotation();
+        		Location userAdjustedDelta = camera.getLocation().derive(null, null, null, placementLocation.getRotation() + pcbRotation - nozzle.getLocation().getRotation());
+        		userAdjustedDelta = userAdjustedDelta.subtract(nozzle.getLocation());
+        		return new PartAlignment.PartAlignmentOffset(userAdjustedDelta, true);
+        	}
+        }
 
         // Pre-rotate to minimize runout
         double preRotateAngle = 0;
@@ -238,19 +262,16 @@ public class ReferenceBottomVision implements PartAlignment {
 
     @Override
     public String getId() {
-        // TODO Auto-generated method stub
         return null;
     }
 
     @Override
     public String getName() {
-        // TODO Auto-generated method stub
         return null;
     }
 
     @Override
     public void setName(String name) {
-        // TODO Auto-generated method stub
 
     }
 
@@ -285,7 +306,6 @@ public class ReferenceBottomVision implements PartAlignment {
 
     @Override
     public PropertySheetHolder[] getChildPropertySheetHolders() {
-        // TODO Auto-generated method stub
         return null;
     }
 
@@ -297,13 +317,11 @@ public class ReferenceBottomVision implements PartAlignment {
 
     @Override
     public Action[] getPropertySheetHolderActions() {
-        // TODO Auto-generated method stub
         return null;
     }
 
     @Override
     public Icon getPropertySheetHolderIcon() {
-        // TODO Auto-generated method stub
         return null;
     }
 
@@ -336,6 +354,9 @@ public class ReferenceBottomVision implements PartAlignment {
     public static class PartSettings {
         @Attribute
         protected boolean enabled;
+        
+        @Attribute(required = false)
+        protected boolean manualAlign;
 
         @Element
         protected CvPipeline pipeline;
@@ -358,9 +379,17 @@ public class ReferenceBottomVision implements PartAlignment {
         public boolean isEnabled() {
             return enabled;
         }
+        
+        public boolean isManualAlign() {
+            return manualAlign;
+        }
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+        
+        public void setManualAlign(boolean enabled) {
+            this.manualAlign = enabled;
         }
 
         public CvPipeline getPipeline() {
