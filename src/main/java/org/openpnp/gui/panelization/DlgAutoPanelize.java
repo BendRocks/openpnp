@@ -117,7 +117,7 @@ public class DlgAutoPanelize extends JDialog {
         partsComboBox.setRenderer(new IdentifiableListCellRenderer<Part>());
         partsComboBox.setEditable(false);
         partsComboBox.setLightWeightPopupEnabled(false);
-        partsComboBox.setMaximumRowCount(7);
+        partsComboBox.setMaximumRowCount(2);
         
         jPanel.add(partsComboBox, "4, 18, fill, default");
 
