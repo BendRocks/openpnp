@@ -88,6 +88,10 @@ public class MachineControlsPanel extends JPanel {
     private Color droNormalColor = new Color(0xBDFFBE);
     private Color droSavedColor = new Color(0x90cce0);
     
+<<<<<<< HEAD
+
+=======
+>>>>>>> 6dea5621c67b04ebd04647bb1a3b930e96d6f13b
     /**
      * Create the panel.
      */
