@@ -287,7 +287,7 @@ public class TVM920Driver implements ReferenceDriver {
 				
 				rh.addNozzle(rn);
 				rn.addNozzleTip(nt);
-				rn.setNozzleTip(nt);
+				//rn.setNozzleTip(nt);
 			}
 			
 			while (rh.getNozzles().size() > numNozzles)
