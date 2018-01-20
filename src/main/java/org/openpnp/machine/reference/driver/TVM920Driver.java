@@ -28,6 +28,8 @@ import org.openpnp.machine.reference.ReferenceNozzle;
 import org.openpnp.machine.reference.ReferenceNozzleTip;
 import org.openpnp.machine.reference.ReferencePasteDispenser;
 import org.openpnp.machine.reference.driver.GcodeDriver.Axis;
+import org.openpnp.machine.reference.driver.wizards.AbstractSerialPortDriverConfigurationWizard;
+import org.openpnp.machine.reference.driver.wizards.TVMSettings;
 import org.openpnp.machine.reference.feeder.ReferenceAutoFeeder;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder;
 import org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder.Bank;
@@ -248,13 +250,30 @@ public class TVM920Driver implements ReferenceDriver {
 	}
 	
 
-	private void createTVM920Nozzles() {
+	public void createTVM920Nozzles() {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
 		
 		int numNozzles = 4;
 
 		try {
+			
+			// Remove all existing nozzles
+			while (rh.getNozzles().size() > 0)
+			{
+				Nozzle n = rh.getNozzles().get(0);
+				
+				try
+				{
+					rh.removeNozzle(n);
+				}
+				catch (Exception e)
+				{
+					
+				}
+			}
+			
+			
 			// Add 4 new nozzles with required TVM characteristics. 
 			for (int i = 0; i < numNozzles; i++) {
 				ReferenceNozzle rn = new ReferenceNozzle();
@@ -287,11 +306,14 @@ public class TVM920Driver implements ReferenceDriver {
 				
 				rh.addNozzle(rn);
 				rn.addNozzleTip(nt);
-				rn.setNozzleTip(nt);
+				//rn.setNozzleTip(nt);
 			}
 			
-			while (rh.getNozzles().size() > numNozzles)
-				rh.removeNozzle(rh.getNozzles().get(0));
+			//while (rh.getNozzles().size() > numNozzles)
+			//{
+			//	Nozzle n = rh.getNozzles().get(0);
+			//	rh.removeNozzle(n);
+			//}
 
 		} catch (Exception e) {
 			log("Exception setting up tips and nozzles: " + e.toString());
@@ -301,7 +323,7 @@ public class TVM920Driver implements ReferenceDriver {
 	//
 	// Removes all feeders from machine and creates new front/rear feeders. This should rarely be called after initial config
 	//
-	private void createTVM920Feeders() {
+	public void createTVM920Feeders() {
 		try {
 			ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 			ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
@@ -346,7 +368,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 	}
 	
-	private void createTVM920Actuators(){
+	public void createTVM920Actuators(){
 		try{
 			ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
 			
@@ -373,11 +395,11 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public Wizard getConfigurationWizard() {
-		createTVM920Nozzles();
-		createTVM920Feeders();
-		createTVM920Actuators();
-
-		return null;
+		return new TVMSettings(this);
+		//createTVM920Nozzles();
+		//createTVM920Feeders();
+		//createTVM920Actuators();
+		//return null;
 	}
 
 	@Override
@@ -392,7 +414,7 @@ public class TVM920Driver implements ReferenceDriver {
 
 	@Override
 	public PropertySheet[] getPropertySheets() {
-		return new PropertySheet[] { new PropertySheetWizardAdapter(getConfigurationWizard()) };
+		return new PropertySheet[] {new PropertySheetWizardAdapter(getConfigurationWizard())};
 	}
 
 	@Override
