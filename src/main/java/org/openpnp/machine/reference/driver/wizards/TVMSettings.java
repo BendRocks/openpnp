@@ -26,6 +26,7 @@ import org.openpnp.machine.reference.driver.TVM920Driver;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
+import org.openpnp.util.MovableUtils;
 
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
@@ -38,7 +39,7 @@ public class TVMSettings extends AbstractConfigurationWizard {
 	
 	private Location n0Mark;
 	
-	private JCheckBox nz0Pick;
+	private JCheckBox nz0Pick, nz1Pick, nz2Pick, nz3Pick;
 	
     public TVMSettings(TVM920Driver driver) {
         this.driver = driver;
@@ -54,6 +55,8 @@ public class TVMSettings extends AbstractConfigurationWizard {
                 FormSpecs.RELATED_GAP_COLSPEC,
                 FormSpecs.DEFAULT_COLSPEC,},
             new RowSpec[] {
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
                 FormSpecs.RELATED_GAP_ROWSPEC,
                 FormSpecs.DEFAULT_ROWSPEC,
                 FormSpecs.RELATED_GAP_ROWSPEC,
@@ -111,6 +114,22 @@ public class TVMSettings extends AbstractConfigurationWizard {
         nz0Pick = new JCheckBox("nz0 pick");
         nz0Pick.setAction(nz0CheckboxAction);
         panel.add(nz0Pick, "2, 16");
+        
+        nz1Pick = new JCheckBox("nz1 pick");
+        nz1Pick.setAction(nz1CheckboxAction);
+        panel.add(nz1Pick, "2, 18");
+        
+        nz2Pick = new JCheckBox("nz2 pick");
+        nz2Pick.setAction(nz1CheckboxAction);
+        panel.add(nz2Pick, "2, 20");
+        
+        nz3Pick = new JCheckBox("nz3 pick");
+        nz3Pick.setAction(nz1CheckboxAction);
+        panel.add(nz3Pick, "2, 22");
+        
+        JButton moveToHomeBtn = new JButton("Move to Home Btn");
+        moveToHomeBtn.setAction(moveToHomeAction);
+        panel.add(moveToHomeBtn, "2, 24");        
     }
     
     private Action createDefaultsAction = new AbstractAction("Create Defaults") {
@@ -206,6 +225,103 @@ public class TVMSettings extends AbstractConfigurationWizard {
     		
         }
     };   
+    
+    
+    
+    private Action nz1CheckboxAction = new AbstractAction("nz1 pick") {
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+    		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
+    		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
+    		
+    		if (nz0Pick.isSelected())
+    		{
+    			try {
+					driver.pick((ReferenceNozzle) rh.getNozzles().get(1));
+				} catch (Exception e) {
+
+				}
+    		}
+    		else
+    		{
+    			try {
+					driver.place((ReferenceNozzle) rh.getNozzles().get(1));
+				} catch (Exception e) {
+
+				}
+    		}
+    		
+        }
+    };   
+    
+    private Action nz2CheckboxAction = new AbstractAction("nz2 pick") {
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+    		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
+    		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
+    		
+    		if (nz0Pick.isSelected())
+    		{
+    			try {
+					driver.pick((ReferenceNozzle) rh.getNozzles().get(2));
+				} catch (Exception e) {
+
+				}
+    		}
+    		else
+    		{
+    			try {
+					driver.place((ReferenceNozzle) rh.getNozzles().get(2));
+				} catch (Exception e) {
+
+				}
+    		}
+    		
+        }
+    };
+    
+    private Action nz3CheckboxAction = new AbstractAction("nz3 pick") {
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+    		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
+    		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
+    		
+    		if (nz0Pick.isSelected())
+    		{
+    			try {
+					driver.pick((ReferenceNozzle) rh.getNozzles().get(3));
+				} catch (Exception e) {
+
+				}
+    		}
+    		else
+    		{
+    			try {
+					driver.place((ReferenceNozzle) rh.getNozzles().get(3));
+				} catch (Exception e) {
+
+				}
+    		}
+    		
+        }
+    }; 
+    
+    private Action moveToHomeAction = new AbstractAction("Move to home") {
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+        	Location loc = driver.getHomeLocation();
+        	
+        	ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
+        	ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
+        	
+        	try{
+        		MovableUtils.moveToLocationAtSafeZ(rh.getDefaultCamera(), loc);
+        	}
+        	catch (Exception ex){
+        		
+        	}
+        }
+    };
     
     
     

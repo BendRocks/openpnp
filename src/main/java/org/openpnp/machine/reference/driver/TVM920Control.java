@@ -1259,6 +1259,11 @@ public class TVM920Control {
 		// setXYPosMM(465, 444);
 		setXYPosMM(MAX_X - 5, MAX_Y - 5);
 	}
+	
+	
+	public Location getHomeLocation(){
+		return homingFiducialLocation;
+	}
 
 	public void findHome() throws Exception {
 		log(String.format("TVM920: FindHome()"));

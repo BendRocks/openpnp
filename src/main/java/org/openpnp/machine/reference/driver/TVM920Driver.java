@@ -249,6 +249,10 @@ public class TVM920Driver implements ReferenceDriver {
 		throw new IllegalArgumentException(s);
 	}
 	
+	public Location getHomeLocation(){
+		return hw.getHomeLocation();
+	}
+	
 
 	public void createTVM920Nozzles() {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
