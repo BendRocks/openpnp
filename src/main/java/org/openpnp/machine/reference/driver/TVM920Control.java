@@ -275,7 +275,7 @@ public class TVM920Control {
 	} // End of static class to help with status
 
 	// Location of hardware fiducial pin
-	protected Location homingFiducialLocation = new Location(LengthUnit.Millimeters, 230.219, 133.119, 0, 0);
+	protected Location homingFiducialLocation = new Location(LengthUnit.Millimeters, 325, 108, 0, 0);
 
 	private DatagramSocket Socket;
 	private Lock NetLock = new ReentrantLock();
