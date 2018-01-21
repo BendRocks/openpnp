@@ -79,6 +79,10 @@ public class TVMSettings extends AbstractConfigurationWizard {
                 FormSpecs.DEFAULT_ROWSPEC,
                 FormSpecs.RELATED_GAP_ROWSPEC,
                 FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
         }));
 
         //JLabel lblPortName = new JLabel("Port");
@@ -120,16 +124,20 @@ public class TVMSettings extends AbstractConfigurationWizard {
         panel.add(nz1Pick, "2, 18");
         
         nz2Pick = new JCheckBox("nz2 pick");
-        nz2Pick.setAction(nz1CheckboxAction);
+        nz2Pick.setAction(nz2CheckboxAction);
         panel.add(nz2Pick, "2, 20");
         
         nz3Pick = new JCheckBox("nz3 pick");
-        nz3Pick.setAction(nz1CheckboxAction);
+        nz3Pick.setAction(nz3CheckboxAction);
         panel.add(nz3Pick, "2, 22");
         
         JButton moveToHomeBtn = new JButton("Move to Home Btn");
         moveToHomeBtn.setAction(moveToHomeAction);
-        panel.add(moveToHomeBtn, "2, 24");        
+        panel.add(moveToHomeBtn, "2, 24");   
+        
+        JButton setAsHomeHomeBtn = new JButton("Set As Home Btn");
+        setAsHomeHomeBtn.setAction(setAsHomeAction);
+        panel.add(setAsHomeHomeBtn, "2, 26");  
     }
     
     private Action createDefaultsAction = new AbstractAction("Create Defaults") {
@@ -234,7 +242,7 @@ public class TVMSettings extends AbstractConfigurationWizard {
     		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
     		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
     		
-    		if (nz0Pick.isSelected())
+    		if (nz1Pick.isSelected())
     		{
     			try {
 					driver.pick((ReferenceNozzle) rh.getNozzles().get(1));
@@ -260,7 +268,7 @@ public class TVMSettings extends AbstractConfigurationWizard {
     		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
     		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
     		
-    		if (nz0Pick.isSelected())
+    		if (nz2Pick.isSelected())
     		{
     			try {
 					driver.pick((ReferenceNozzle) rh.getNozzles().get(2));
@@ -286,7 +294,7 @@ public class TVMSettings extends AbstractConfigurationWizard {
     		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
     		ReferenceHead rh = (ReferenceHead) rm.getHeads().get(0);
     		
-    		if (nz0Pick.isSelected())
+    		if (nz3Pick.isSelected())
     		{
     			try {
 					driver.pick((ReferenceNozzle) rh.getNozzles().get(3));
@@ -320,6 +328,13 @@ public class TVMSettings extends AbstractConfigurationWizard {
         	catch (Exception ex){
         		
         	}
+        }
+    };
+    
+    private Action setAsHomeAction = new AbstractAction("Set As Home") {
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+        	driver.setAsHomeLocation();
         }
     };
     

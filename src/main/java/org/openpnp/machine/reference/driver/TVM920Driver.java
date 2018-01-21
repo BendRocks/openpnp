@@ -253,6 +253,15 @@ public class TVM920Driver implements ReferenceDriver {
 		return hw.getHomeLocation();
 	}
 	
+	// Sets current XY location as home. BUGBUG: Should make sure
+	// home location is no more than +/-10 mm from HW location to ensure
+	// user doesn't set home to location that would render bounds checking
+	// useless
+	public void setAsHomeLocation()
+	{
+		hw.setAsHomeLocation();
+	}
+	
 
 	public void createTVM920Nozzles() {
 		ReferenceMachine rm = (ReferenceMachine) Configuration.get().getMachine();
